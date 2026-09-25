@@ -1,9 +1,7 @@
-// ProofPay — Tela de autenticação (Etapa 4)
+// ProofPay — Tela de autenticação (Etapa 5: Google OAuth real)
 //
-// Nesta etapa, os botões de Google e Phantom AINDA NÃO fazem login real —
-// isso vem nas Etapas 5 e 6. O que já funciona de verdade aqui:
-//   - checar se existe uma sessão ativa ao carregar a página;
-//   - logout real, via supabase.auth.signOut().
+// Login com Google agora é real, via Supabase Auth (OAuth). A Phantom
+// continua como placeholder — isso é a Etapa 6.
 document.addEventListener('DOMContentLoaded', async () => {
   const loadingEl = document.getElementById('auth-loading');
   const loginCard = document.getElementById('auth-login-card');
@@ -20,16 +18,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  function showStatus(message, isError) {
+    statusEl.textContent = message;
+    statusEl.classList.toggle('error', !!isError);
+    statusEl.classList.toggle('pending', !isError);
+  }
+
+  // O Google pode voltar com ?error=...&error_description=... (ex.: usuário
+  // cancelou o consentimento) — checa isso ANTES de checar sessão, e depois
+  // limpa a URL pra não deixar esse estado preso num refresh.
+  function consumeOAuthErrorFromUrl() {
+    const url = new URL(window.location.href);
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+    const error = url.searchParams.get('error_description') || hashParams.get('error_description')
+      || url.searchParams.get('error') || hashParams.get('error');
+
+    if (error) {
+      showStatus('Não foi possível entrar com Google: ' + decodeURIComponent(error), true);
+      window.history.replaceState({}, document.title, url.pathname);
+      return true;
+    }
+    return false;
+  }
+
   async function refreshSessionState() {
     const { data, error } = await window.ppSupabase.auth.getSession();
 
-    loadingEl.classList.add('hide');
     loadingEl.style.display = 'none';
 
     if (error) {
       loginCard.classList.remove('hide');
-      statusEl.textContent = 'Erro ao verificar sessão: ' + error.message;
-      statusEl.classList.add('error');
+      showStatus('Erro ao verificar sessão: ' + error.message, true);
       return;
     }
 
@@ -43,19 +62,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function showPending(message) {
-    statusEl.textContent = message;
-    statusEl.classList.remove('error');
-    statusEl.classList.add('pending');
-  }
+  btnGoogle.addEventListener('click', async () => {
+    btnGoogle.disabled = true;
+    const originalText = btnGoogle.textContent;
+    showStatus('Redirecionando para o Google…', false);
 
-  // Placeholders — implementação real nas Etapas 5 (Google) e 6 (Phantom).
-  btnGoogle.addEventListener('click', () => {
-    showPending('Login com Google será ativado na Etapa 5.');
+    const { error } = await window.ppSupabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // volta pra própria auth.html, no mesmo domínio de onde a página
+        // foi carregada — evita fixar um domínio só (ex.: Netlify agora,
+        // outro depois) diretamente no código.
+        redirectTo: window.location.origin + '/auth.html'
+      }
+    });
+
+    // Se chegou aqui, o redirecionamento para o Google NÃO aconteceu —
+    // ou seja, deu erro antes de sair da página.
+    if (error) {
+      btnGoogle.disabled = false;
+      btnGoogle.textContent = originalText;
+      showStatus('Erro ao iniciar login com Google: ' + error.message, true);
+    }
   });
 
+  // Placeholder — implementação real na Etapa 6.
   btnPhantom.addEventListener('click', () => {
-    showPending('Conexão com a Phantom será ativada na Etapa 6.');
+    showStatus('Conexão com a Phantom será ativada na Etapa 6.', false);
   });
 
   btnLogout.addEventListener('click', async () => {
@@ -73,10 +106,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnLogout.textContent = 'Sair';
   });
 
-  // Mantém a tela em sincronia se a sessão mudar em outra aba, por exemplo.
+  // Mantém a tela em sincronia se a sessão mudar (ex.: voltando do Google).
   window.ppSupabase.auth.onAuthStateChange(() => {
     refreshSessionState();
   });
 
-  refreshSessionState();
+  const hadOAuthError = consumeOAuthErrorFromUrl();
+  await refreshSessionState();
+  if (!hadOAuthError && !loginCard.classList.contains('hide')) {
+    statusEl.textContent = '';
+  }
 });
