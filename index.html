@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ProofPay — Contratos claros, pagamentos protegidos</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="hero">
+ <div class="hero-bg-base" aria-hidden="true"></div>
+ <div class="hero-bg-atmosphere" aria-hidden="true"><span></span><span></span><span></span></div>
+ <div class="hero-bg-canvas" id="hero-bg" aria-hidden="true">
+  <canvas id="hero-bg-canvas"></canvas>
+ </div>
+ <div class="hero-overlay" aria-hidden="true"></div>
+
+ <header style="border-bottom:1px solid rgba(255,255,255,.08)">
+  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:20px 28px">
+   <div class="brand"><div class="mark"></div><span>ProofPay</span></div>
+   <nav style="display:flex;align-items:center;gap:14px">
+    <div class="lang-switch">
+     <button type="button" class="lang-btn" data-lang="pt" onclick="ppSetLanguage('pt')">PT</button>
+     <button type="button" class="lang-btn" data-lang="en" onclick="ppSetLanguage('en')">EN</button>
+    </div>
+    <a class="btn btn-ghost" href="auth.html" style="padding:8px 14px;font-size:13.5px" data-i18n="nav_login">Entrar</a>
+    <a class="btn btn-primary" href="auth.html" style="padding:8px 14px;font-size:13.5px" data-i18n="nav_signup">Criar conta</a>
+   </nav>
+  </div>
+ </header>
+
+ <div class="wrap hero-grid">
+  <div class="hero-left">
+   <span class="badge" data-i18n="hero_badge">✦ IA + escrow em USDC na Solana</span>
+   <h1 data-i18n="hero_title">Contratos mais claros. Entregas verificáveis. Pagamentos protegidos.</h1>
+   <p class="hero-desc" data-i18n="hero_desc">A IA transforma o que foi combinado em critérios objetivos, e o pagamento fica protegido em escrow até a entrega ser aprovada.</p>
+   <div class="hero-ctas">
+    <a class="btn btn-primary" href="auth.html" data-i18n="hero_cta_primary">Criar um acordo →</a>
+    <a class="btn btn-ghost" href="#como-funciona" data-i18n="hero_cta_secondary">Como funciona</a>
+   </div>
+   <div class="hero-indicators">
+    <span class="indicator"><span class="indicator-dot"></span>AI Verification</span>
+    <span class="indicator"><span class="indicator-dot"></span>USDC Escrow</span>
+    <span class="indicator"><span class="indicator-dot"></span>Solana</span>
+   </div>
+  </div>
+
+  <div class="hero-right">
+   <div class="agreement-mockup">
+    <div class="am-head">
+     <div>
+      <div class="am-id">Agreement #PF-2048</div>
+      <div class="am-title" data-i18n="mockup_title">Landing Page para Startup</div>
+     </div>
+     <div class="am-price">500 <span>USDC</span></div>
+    </div>
+
+    <div class="am-status">
+     <span class="am-status-dot"></span>
+     <span data-i18n="mockup_status">AI Verification</span>
+    </div>
+
+    <div class="am-criteria">
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="mockup_crit_1">Página publicada</span></div>
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="mockup_crit_2">Responsividade</span></div>
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="mockup_crit_3">Formulário funcional</span></div>
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="mockup_crit_4">GitHub entregue</span></div>
+     <div class="am-row am-warn"><span class="am-icon">⚠</span><span>Performance: 84/90</span></div>
+    </div>
+
+    <div class="am-footer">
+     <span class="am-progress" data-i18n="mockup_progress">5/6 critérios atendidos</span>
+     <span class="am-locked">🔒 <span data-i18n="mockup_protected">Fundos protegidos</span></span>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div id="como-funciona" style="border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:80px 0">
+ <div class="wrap">
+  <h2 class="section-title" data-i18n="how_title">Como funciona</h2>
+  <div class="flow-timeline">
+   <div class="flow-step">
+    <div class="flow-num">01</div>
+    <div class="flow-content">
+     <h3 data-i18n="flow1_title">Descreva</h3>
+     <p data-i18n="flow1_desc">O contratante descreve o serviço em linguagem natural.</p>
+    </div>
+   </div>
+   <div class="flow-step">
+    <div class="flow-num">02</div>
+    <div class="flow-content">
+     <h3 data-i18n="flow2_title">A IA estrutura</h3>
+     <p data-i18n="flow2_desc">A IA transforma a descrição em critérios objetivos.</p>
+    </div>
+   </div>
+   <div class="flow-step">
+    <div class="flow-num">03</div>
+    <div class="flow-content">
+     <h3 data-i18n="flow3_title">Proteja o pagamento</h3>
+     <p data-i18n="flow3_desc">O valor fica reservado no escrow.</p>
+    </div>
+   </div>
+   <div class="flow-step">
+    <div class="flow-num">04</div>
+    <div class="flow-content">
+     <h3 data-i18n="flow4_title">Envie a entrega</h3>
+     <p data-i18n="flow4_desc">O prestador apresenta as evidências.</p>
+    </div>
+   </div>
+   <div class="flow-step">
+    <div class="flow-num">05</div>
+    <div class="flow-content">
+     <h3 data-i18n="flow5_title">Verifique e aprove</h3>
+     <p data-i18n="flow5_desc">A IA analisa e o contratante decide.</p>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div id="produto" style="padding:90px 0">
+ <div class="wrap">
+  <h2 class="section-title" style="text-align:center;margin-left:auto;margin-right:auto" data-i18n="product_title">Veja o ProofPay em ação</h2>
+
+  <div class="dash-mockup shadow">
+   <div class="dash-sidebar">
+    <div class="dash-brand"><div class="mark" style="width:20px;height:20px"></div><span>ProofPay</span></div>
+    <nav class="dash-nav">
+     <span class="dash-nav-item" data-i18n="nav_dashboard">Dashboard</span>
+     <span class="dash-nav-item active" data-i18n="nav_agreements">Meus acordos</span>
+     <span class="dash-nav-item" data-i18n="nav_explore">Explorar serviços</span>
+     <span class="dash-nav-item" data-i18n="nav_myservices">Meus serviços</span>
+     <span class="dash-nav-item" data-i18n="nav_wallet">Carteira</span>
+    </nav>
+   </div>
+
+   <div class="dash-main">
+    <div class="dash-main-head">
+     <div>
+      <div class="am-id">Agreement #PF-2048</div>
+      <div class="am-title" data-i18n="mockup_title">Landing Page para Startup</div>
+     </div>
+     <div class="am-price">500 <span>USDC</span></div>
+    </div>
+    <div class="am-status" style="margin-bottom:26px">
+     <span class="am-status-dot"></span>
+     <span data-i18n="mockup_status">AI Verification</span>
+    </div>
+
+    <div class="dash-timeline">
+     <div class="dt-row dt-done"><span class="dt-dot">✓</span><span data-i18n="tl_created">Agreement created</span></div>
+     <div class="dt-row dt-done"><span class="dt-dot">✓</span><span data-i18n="tl_funded">Escrow funded</span></div>
+     <div class="dt-row dt-done"><span class="dt-dot">✓</span><span data-i18n="tl_accepted">Provider accepted</span></div>
+     <div class="dt-row dt-done"><span class="dt-dot">✓</span><span data-i18n="tl_submitted">Delivery submitted</span></div>
+     <div class="dt-row dt-current"><span class="dt-dot"></span><span data-i18n="tl_verification">AI verification</span></div>
+     <div class="dt-row dt-pending"><span class="dt-dot"></span><span data-i18n="tl_approval">Approval</span></div>
+     <div class="dt-row dt-pending"><span class="dt-dot"></span><span data-i18n="tl_payment">Payment released</span></div>
+    </div>
+   </div>
+
+   <div class="dash-aside">
+    <div class="dash-aside-title" data-i18n="aside_ai_title">AI Verification</div>
+    <div class="am-progress" style="display:block;margin-bottom:18px" data-i18n="mockup_progress">5/6 critérios atendidos</div>
+    <div class="am-criteria">
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="aside_c1">URL encontrada</span></div>
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="aside_c2">Responsividade verificada</span></div>
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="aside_c3">GitHub encontrado</span></div>
+     <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="aside_c4">Formulário funcional</span></div>
+     <div class="am-row am-warn"><span class="am-icon">⚠</span><span>Lighthouse 84/90</span></div>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div id="escrow" style="border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:90px 0">
+ <div class="wrap">
+  <div class="grid2" style="align-items:center">
+   <div>
+    <h2 class="section-title" style="margin-bottom:18px" data-i18n="escrow_title">Seu dinheiro fica protegido até a entrega.</h2>
+    <p class="section-desc" data-i18n="escrow_desc">O pagamento não vai diretamente para o prestador. O valor permanece reservado até que a entrega seja aprovada.</p>
+    <div class="hero-indicators" style="margin-top:30px">
+     <span class="indicator"><span class="indicator-dot"></span>USDC</span>
+     <span class="indicator"><span class="indicator-dot"></span>Solana</span>
+     <span class="indicator"><span class="indicator-dot"></span><span data-i18n="escrow_badge_label">Escrow protegido</span></span>
+    </div>
+   </div>
+   <div class="escrow-flow">
+    <div class="ef-node" data-i18n="escrow_client">Contratante</div>
+    <div class="ef-line"></div>
+    <div class="ef-amount">500 <span>USDC</span></div>
+    <div class="ef-line"></div>
+    <div class="ef-lock"><span class="ef-lock-icon">🔒</span><span data-i18n="escrow_badge">ESCROW</span></div>
+    <div class="ef-line"></div>
+    <div class="ef-node" data-i18n="escrow_provider">Prestador</div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div id="ia" style="padding:90px 0">
+ <div class="wrap" style="max-width:680px">
+  <h2 class="section-title" style="text-align:center" data-i18n="ai_title">A IA verifica o que foi combinado.</h2>
+
+  <div class="ai-panel shadow">
+   <div class="ai-panel-head">
+    <span class="ai-panel-dot"></span>
+    <span data-i18n="aside_ai_title">AI Verification</span>
+   </div>
+   <div class="ai-analyzing" data-i18n="ai_analyzing">Analisando entrega...</div>
+   <div class="am-criteria" style="margin:20px 0 22px">
+    <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="ai_c1">URL acessível</span></div>
+    <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="ai_c2">Arquivos analisados</span></div>
+    <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="ai_c3">Repositório GitHub encontrado</span></div>
+    <div class="am-row am-ok"><span class="am-icon">✓</span><span data-i18n="ai_c4">Layout responsivo verificado</span></div>
+    <div class="am-row am-warn"><span class="am-icon">⚠</span><span data-i18n="ai_c5">Lighthouse abaixo do exigido</span></div>
+   </div>
+   <div class="am-progress" style="display:block" data-i18n="mockup_progress">5/6 critérios atendidos</div>
+  </div>
+
+  <p class="ai-callout"><span data-i18n="ai_callout_1">A IA analisa as evidências.</span> <strong data-i18n="ai_callout_2">A decisão final continua com o contratante.</strong></p>
+ </div>
+</div>
+
+<div id="servicos" style="padding:90px 0;border-top:1px solid var(--line)">
+ <div class="wrap">
+  <h2 class="section-title" style="text-align:center" data-i18n="services_title">Para qualquer serviço com critérios verificáveis.</h2>
+  <div class="svc-grid">
+   <div class="svc-card">
+    <div class="svc-icon">💻</div>
+    <h3 data-i18n="svc1_title">Desenvolvimento</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc1_ex">URL publicada, testes e repositório entregue</span></p>
+   </div>
+   <div class="svc-card">
+    <div class="svc-icon">🎨</div>
+    <h3 data-i18n="svc2_title">Design</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc2_ex">Arquivos finais e aprovação do mockup</span></p>
+   </div>
+   <div class="svc-card">
+    <div class="svc-icon">📱</div>
+    <h3 data-i18n="svc3_title">Aplicativos</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc3_ex">Build funcional e publicação na loja</span></p>
+   </div>
+   <div class="svc-card">
+    <div class="svc-icon">📈</div>
+    <h3 data-i18n="svc4_title">Marketing</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc4_ex">Métricas da campanha e relatório de resultados</span></p>
+   </div>
+   <div class="svc-card">
+    <div class="svc-icon">✍️</div>
+    <h3 data-i18n="svc5_title">Copywriting</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc5_ex">Texto entregue e revisão aprovada</span></p>
+   </div>
+   <div class="svc-card">
+    <div class="svc-icon">🤖</div>
+    <h3 data-i18n="svc6_title">Automação</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc6_ex">Fluxo testado e documentação entregue</span></p>
+   </div>
+   <div class="svc-card">
+    <div class="svc-icon">🎬</div>
+    <h3 data-i18n="svc7_title">Vídeo</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc7_ex">Arquivo final e formato aprovado</span></p>
+   </div>
+   <div class="svc-card">
+    <div class="svc-icon">🧠</div>
+    <h3 data-i18n="svc8_title">Consultoria</h3>
+    <p class="svc-example"><span data-i18n="svc_verif_label">Verificação:</span> <span data-i18n="svc8_ex">Entregável documentado e sessão concluída</span></p>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div id="tecnologia" style="padding:96px 0;border-top:1px solid var(--line)">
+ <div class="wrap">
+  <div class="tech-head">
+   <span class="pill" data-i18n="tech_eyebrow">Confiança</span>
+   <h2 class="section-title" data-i18n="tech_title">Tecnologia que sustenta a confiança.</h2>
+   <p class="tech-desc" data-i18n="tech_desc">Três camadas trabalham juntas para proteger cada acordo, da negociação ao pagamento.</p>
+  </div>
+
+  <div class="tech-stack-visual">
+   <div class="tsv-layer">
+    <div class="tsv-icon">🧠</div>
+    <div class="tsv-body">
+     <h3 data-i18n="tech1_title">IA</h3>
+     <p data-i18n="tech1_desc">Transforma acordos vagos em critérios verificáveis e analisa as evidências enviadas.</p>
+    </div>
+    <span class="tsv-tag">01</span>
+   </div>
+   <div class="tsv-connector"></div>
+   <div class="tsv-layer">
+    <div class="tsv-icon">🔒</div>
+    <div class="tsv-body">
+     <h3 data-i18n="tech2_title">Escrow</h3>
+     <p data-i18n="tech2_desc">Protege o pagamento enquanto o trabalho está sendo realizado.</p>
+    </div>
+    <span class="tsv-tag">02</span>
+   </div>
+   <div class="tsv-connector"></div>
+   <div class="tsv-layer">
+    <div class="tsv-icon">⛓</div>
+    <div class="tsv-body">
+     <h3 data-i18n="tech3_title">Blockchain</h3>
+     <p data-i18n="tech3_desc">Registra e executa a movimentação do pagamento de forma transparente.</p>
+    </div>
+    <span class="tsv-tag">03</span>
+   </div>
+  </div>
+
+  <div class="tech-stack">
+   <span class="ts-node"><span class="indicator-dot"></span>AI</span>
+   <span class="ts-line"></span>
+   <span class="ts-node"><span class="indicator-dot"></span>ESCROW</span>
+   <span class="ts-line"></span>
+   <span class="ts-node"><span class="indicator-dot"></span>SOLANA</span>
+  </div>
+ </div>
+</div>
+
+<div class="final-cta" id="comecar">
+ <div class="wrap" style="text-align:center">
+  <h2 class="final-title" data-i18n="final_title">Transforme seu próximo acordo em algo verificável.</h2>
+  <p class="final-sub" data-i18n="final_sub">Defina o que precisa ser entregue. Proteja o pagamento. Verifique o resultado.</p>
+  <a class="btn btn-primary btn-lg" href="auth.html" data-i18n="final_cta">Criar meu primeiro acordo</a>
+  <div class="final-powered" data-i18n="final_powered">Powered by AI · USDC · Solana</div>
+ </div>
+</div>
+
+<footer class="site-footer">
+ <div class="wrap">
+  <div class="footer-grid">
+   <div class="footer-brand">
+    <div class="brand"><div class="mark" style="width:22px;height:22px"></div><span style="font-size:15px">ProofPay</span></div>
+    <p data-i18n="footer_tagline">Contratos mais claros. Entregas verificáveis. Pagamentos protegidos.</p>
+   </div>
+   <div class="footer-col">
+    <h4 data-i18n="footer_product">Produto</h4>
+    <a href="#como-funciona" data-i18n="footer_how">Como funciona</a>
+    <a href="#servicos" data-i18n="footer_services">Serviços</a>
+    <a href="#tecnologia" data-i18n="footer_tech">Tecnologia</a>
+   </div>
+   <div class="footer-col">
+    <h4 data-i18n="footer_company">Empresa</h4>
+    <a href="#" data-i18n="footer_about">Sobre</a>
+    <a href="#" data-i18n="footer_contact">Contato</a>
+   </div>
+   <div class="footer-col">
+    <h4 data-i18n="footer_legal">Legal</h4>
+    <a href="#" data-i18n="footer_terms">Termos</a>
+    <a href="#" data-i18n="footer_privacy">Privacidade</a>
+   </div>
+  </div>
+  <div class="footer-bottom">
+   <span id="year"></span>
+  </div>
+ </div>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="main.js"></script>
+<script src="hero-bg.js"></script>
+</body>
+</html>

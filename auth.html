@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Criar conta — ProofPay</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="auth-shell">
+ <div class="lang-switch" style="position:fixed;top:20px;right:24px">
+  <button type="button" class="lang-btn" data-lang="pt" onclick="ppSetLanguage('pt')">PT</button>
+  <button type="button" class="lang-btn" data-lang="en" onclick="ppSetLanguage('en')">EN</button>
+ </div>
+ <div style="width:100%;max-width:400px">
+  <a href="index.html" class="brand" style="justify-content:center;padding-bottom:28px"><div class="mark"></div><span>ProofPay</span></a>
+  <div class="card shadow">
+   <h2 style="font-size:20px;margin:0 0 4px;color:#fff" data-i18n="auth_title">Criar sua conta</h2>
+   <p style="color:var(--ink-soft);font-size:13.5px;margin:0 0 22px" data-i18n="auth_desc">Contrate e ofereça serviços na mesma conta.</p>
+   <form id="signupForm">
+    <div class="field"><label for="name" data-i18n="label_name">Nome</label><input id="name" name="name" placeholder="João Almeida" data-i18n-placeholder="placeholder_name" required></div>
+    <div class="field"><label for="email" data-i18n="label_email">E-mail</label><input id="email" name="email" type="email" placeholder="joao@email.com" data-i18n-placeholder="placeholder_email" required></div>
+    <div class="field"><label for="password" data-i18n="label_password">Senha</label><input id="password" name="password" type="password" placeholder="••••••••" required minlength="8"></div>
+    <button type="submit" class="btn btn-primary btn-block" data-i18n="btn_signup">Criar conta</button>
+   </form>
+   <div style="display:flex;align-items:center;gap:10px;margin:18px 0;color:rgba(255,255,255,.35);font-size:12.5px">
+    <div style="flex:1;height:1px;background:var(--line)"></div><span data-i18n="divider_or">ou</span><div style="flex:1;height:1px;background:var(--line)"></div>
+   </div>
+   <button type="button" class="btn btn-ghost btn-block" id="connectWallet" data-i18n="btn_wallet">👛 Conectar carteira Solana</button>
+   <p style="color:var(--ink-faint);font-size:12.5px;text-align:center;margin:18px 0 0"><span data-i18n="auth_have_account">Já tem conta?</span> <a href="auth.html" style="color:#e3e4e7;font-weight:600" data-i18n="auth_login_link">Entrar</a></p>
+  </div>
+ </div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
