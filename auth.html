@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ProofPay — Entrar</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .auth-screen{min-height:100vh;display:flex;flex-direction:column;background:
+    radial-gradient(120% 90% at 50% 0%,#1c1d22 0%,#0a0a0c 60%),#0a0a0c;}
+  .auth-header{padding:24px 28px}
+  .auth-main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+  .auth-card{width:100%;max-width:400px}
+  .auth-card h1{font-size:26px;margin-bottom:6px}
+  .auth-card p.auth-sub{color:var(--ink-soft);font-size:14.5px;margin:0 0 28px}
+  .auth-provider{display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;padding:13px 18px;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-family:Inter;font-weight:600;
+    font-size:14.5px;cursor:pointer;transition:border-color .12s,background .12s;}
+  .auth-provider:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
+  .auth-provider svg{width:19px;height:19px;flex-shrink:0}
+  .auth-divider{display:flex;align-items:center;gap:12px;color:var(--ink-faint);
+    font-size:12.5px;margin:16px 0}
+  .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--line)}
+  .auth-note{margin-top:22px;font-size:12.5px;color:var(--ink-faint);text-align:center;line-height:1.5}
+  .auth-status{font-size:12.5px;text-align:center;margin-top:10px;min-height:16px}
+  .auth-status.pending{color:var(--ink-faint)}
+  .auth-status.error{color:#f87171}
+  .auth-loading{color:var(--ink-soft);font-size:14.5px;text-align:center}
+  .auth-session-card{display:none}
+  .auth-session-card.show{display:block}
+  .auth-login-card.hide{display:none}
+</style>
+</head>
+<body>
+
+<div class="auth-screen">
+  <header class="auth-header">
+    <a class="brand" href="index.html"><div class="mark"></div><span>ProofPay</span></a>
+  </header>
+
+  <main class="auth-main">
+    <div class="auth-card">
+
+      <!-- estado: carregando sessão -->
+      <div id="auth-loading" class="auth-loading">Verificando sessão…</div>
+
+      <!-- estado: sem sessão -->
+      <div id="auth-login-card" class="auth-login-card hide">
+        <h1>Entre no ProofPay</h1>
+        <p class="auth-sub">Contrate e ofereça serviços na mesma conta.</p>
+
+        <button type="button" class="auth-provider" id="btn-google">
+          <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3.3 14.7 2.3 12 2.3 6.9 2.3 2.8 6.4 2.8 11.5S6.9 20.7 12 20.7c6.9 0 8.9-4.8 8.9-7.3 0-.5 0-.9-.1-1.2H12z"/></svg>
+          Continuar com Google
+        </button>
+
+        <div class="auth-divider">ou</div>
+
+        <button type="button" class="auth-provider" id="btn-phantom">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Continuar com Phantom
+        </button>
+
+        <div id="auth-status" class="auth-status"></div>
+
+        <p class="auth-note">Sua carteira é usada pra proteger seus pagamentos. Você pode conectar a Phantom agora ou depois, a partir da sua conta.</p>
+      </div>
+
+      <!-- estado: já autenticado -->
+      <div id="auth-session-card" class="auth-session-card">
+        <h1>Você já está conectado</h1>
+        <p class="auth-sub" id="auth-session-email"></p>
+        <button type="button" class="btn btn-ghost btn-block" id="btn-logout">Sair</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>
