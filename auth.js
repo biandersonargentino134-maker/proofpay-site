@@ -1,8 +1,17 @@
-// ProofPay — Tela de autenticação (Etapa 6: conexão real com a Phantom)
+// ProofPay — Tela de autenticação (Etapa 7: separação de authenticated /
+// walletConnected / walletVerified)
 //
-// Fluxo da Phantom (Opção 1 aprovada): exige sessão já autenticada (Google).
-// A carteira nunca é declarada "verificada" pelo navegador — só o retorno
-// da Edge Function verify-wallet-signature pode marcar isso.
+// Três estados, tratados como coisas DIFERENTES:
+//   authenticated  — existe uma sessão válida do Supabase (Google).
+//   walletVerified — fato PERSISTIDO no banco (profiles.wallet_verified).
+//                    Só muda via verify-wallet-signature. Desconectar a
+//                    Phantom no navegador NUNCA zera isso (Opção B).
+//   walletConnected— fato AO VIVO do navegador: a Phantom está conectada
+//                    a este site agora? É local e temporário.
+//
+// Authorization de verdade (o que pode ou não fazer algo financeiro) é
+// walletVerified && walletConnected && o endereço conectado bater com o
+// verificado — isso é o que a Etapa 8 vai usar.
 document.addEventListener('DOMContentLoaded', async () => {
   const loadingEl = document.getElementById('auth-loading');
   const loginCard = document.getElementById('auth-login-card');
@@ -14,12 +23,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnLogout = document.getElementById('btn-logout');
   const walletBadge = document.getElementById('wallet-badge');
   const walletAddressEl = document.getElementById('wallet-address');
+  const walletNoteEl = document.getElementById('wallet-note');
   const walletStatusEl = document.getElementById('wallet-status');
 
   if (typeof window.ppSupabase === 'undefined') {
     loadingEl.textContent = 'Não foi possível conectar ao Supabase. Veja o console (F12).';
     console.error('[ProofPay] window.ppSupabase não existe — confirme supabase-client.js.');
     return;
+  }
+
+  // ---- estado central ----
+  const state = {
+    session: null,
+    profile: null,        // { wallet_address, wallet_verified } | null
+    walletConnected: false,
+    connectedAddress: null
+  };
+
+  function getAuthState() {
+    const verified = !!(state.profile && state.profile.wallet_verified);
+    const connected = state.walletConnected;
+    const matches = !!(
+      verified && connected && state.connectedAddress &&
+      state.profile.wallet_address === state.connectedAddress
+    );
+    return {
+      authenticated: !!state.session,
+      walletVerified: verified,
+      walletConnected: connected,
+      walletMatches: matches
+    };
   }
 
   function showLoginStatus(message, kind) {
@@ -31,7 +64,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     walletStatusEl.textContent = message;
     walletStatusEl.className = 'auth-status' + (kind ? ' ' + kind : '');
   }
-
 
   async function extractInvokeError(error) {
     if (!error) return 'Erro desconhecido.';
@@ -56,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function truncateAddress(addr) {
-    return addr.length > 10 ? addr.slice(0, 4) + '…' + addr.slice(-4) : addr;
+    return addr && addr.length > 10 ? addr.slice(0, 4) + '…' + addr.slice(-4) : addr;
   }
 
   function consumeOAuthErrorFromUrl() {
@@ -72,7 +104,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     return false;
   }
 
-  async function loadWalletStatus(userId) {
+  // ---- renderização da caixa de carteira, a partir do estado central ----
+  function renderWalletUI() {
+    const s = getAuthState();
+    walletNoteEl.style.display = 'none';
+    walletAddressEl.style.display = 'none';
+
+    if (!s.walletVerified && !s.walletConnected) {
+      walletBadge.textContent = 'não conectada';
+      walletBadge.className = 'wallet-badge pending';
+      btnPhantom.textContent = 'Conectar Phantom';
+      btnPhantom.style.display = '';
+      return;
+    }
+
+    if (!s.walletVerified && s.walletConnected) {
+      walletBadge.textContent = 'conectada, não verificada';
+      walletBadge.className = 'wallet-badge warning';
+      walletAddressEl.textContent = truncateAddress(state.connectedAddress);
+      walletAddressEl.style.display = 'block';
+      btnPhantom.textContent = 'Verificar carteira';
+      btnPhantom.style.display = '';
+      return;
+    }
+
+    if (s.walletVerified && s.walletConnected && s.walletMatches) {
+      walletBadge.textContent = 'verificada';
+      walletBadge.className = 'wallet-badge verified';
+      walletAddressEl.textContent = truncateAddress(state.profile.wallet_address);
+      walletAddressEl.style.display = 'block';
+      btnPhantom.textContent = 'Trocar carteira';
+      btnPhantom.style.display = '';
+      return;
+    }
+
+    if (s.walletVerified && s.walletConnected && !s.walletMatches) {
+      walletBadge.textContent = 'carteira diferente da verificada';
+      walletBadge.className = 'wallet-badge warning';
+      walletAddressEl.textContent = truncateAddress(state.connectedAddress);
+      walletAddressEl.style.display = 'block';
+      walletNoteEl.textContent = 'Esta não é a carteira verificada da sua conta (' + truncateAddress(state.profile.wallet_address) + '). Verifique esta se quiser trocar.';
+      walletNoteEl.style.display = 'block';
+      btnPhantom.textContent = 'Verificar esta carteira';
+      btnPhantom.style.display = '';
+      return;
+    }
+
+    // s.walletVerified && !s.walletConnected — Opção B: continua "verificada".
+    walletBadge.textContent = 'verificada';
+    walletBadge.className = 'wallet-badge verified';
+    walletAddressEl.textContent = truncateAddress(state.profile.wallet_address);
+    walletAddressEl.style.display = 'block';
+    walletNoteEl.textContent = 'Carteira não conectada neste navegador agora.';
+    walletNoteEl.style.display = 'block';
+    btnPhantom.textContent = 'Reconectar Phantom';
+    btnPhantom.style.display = '';
+  }
+
+  async function loadProfile(userId) {
     const { data, error } = await window.ppSupabase
       .from('profiles')
       .select('wallet_address, wallet_verified')
@@ -81,25 +170,62 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (error) {
       showWalletStatus('Não foi possível carregar o status da carteira.', 'error');
+      state.profile = null;
       return;
     }
+    state.profile = data;
+  }
 
-    if (data.wallet_verified && data.wallet_address) {
-      walletBadge.textContent = 'verificada';
-      walletBadge.className = 'wallet-badge verified';
-      walletAddressEl.textContent = truncateAddress(data.wallet_address);
-      walletAddressEl.style.display = 'block';
-      btnPhantom.textContent = 'Trocar carteira';
-    } else {
-      walletBadge.textContent = 'não conectada';
-      walletBadge.className = 'wallet-badge pending';
-      walletAddressEl.style.display = 'none';
+  // ---- Phantom: eventos ao vivo (troca de conta / desconexão) ----
+  function attachPhantomEvents() {
+    const provider = window.solana;
+    if (!provider || !provider.isPhantom) return;
+
+    provider.on('connect', (publicKey) => {
+      state.walletConnected = true;
+      state.connectedAddress = publicKey ? publicKey.toString() : provider.publicKey?.toString() || null;
+      renderWalletUI();
+    });
+
+    provider.on('disconnect', () => {
+      // Opção B: só o estado AO VIVO cai. walletVerified no banco não muda.
+      state.walletConnected = false;
+      state.connectedAddress = null;
+      renderWalletUI();
+    });
+
+    provider.on('accountChanged', (publicKey) => {
+      if (publicKey) {
+        state.walletConnected = true;
+        state.connectedAddress = publicKey.toString();
+      } else {
+        state.walletConnected = false;
+        state.connectedAddress = null;
+      }
+      renderWalletUI();
+    });
+  }
+
+  // Tenta reconectar em silêncio (sem popup) se este site já foi autorizado
+  // antes na Phantom — só assim dá pra saber o walletConnected real ao
+  // carregar a página, sem incomodar quem não vai usar a carteira agora.
+  async function trySilentReconnect() {
+    const provider = window.solana;
+    if (!provider || !provider.isPhantom) return;
+    try {
+      const resp = await provider.connect({ onlyIfTrusted: true });
+      state.walletConnected = true;
+      state.connectedAddress = resp.publicKey.toString();
+    } catch (e) {
+      state.walletConnected = false;
+      state.connectedAddress = null;
     }
   }
 
   async function refreshSessionState() {
     const { data, error } = await window.ppSupabase.auth.getSession();
     loadingEl.style.display = 'none';
+    state.session = data && data.session ? data.session : null;
 
     if (error) {
       loginCard.classList.remove('hide');
@@ -107,11 +233,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    if (data.session) {
+    if (state.session) {
       loginCard.classList.add('hide');
       sessionCard.classList.add('show');
-      sessionEmailEl.textContent = data.session.user.email || 'Conta conectada';
-      await loadWalletStatus(data.session.user.id);
+      sessionEmailEl.textContent = state.session.user.email || 'Conta conectada';
+      await loadProfile(state.session.user.id);
+      await trySilentReconnect();
+      renderWalletUI();
     } else {
       sessionCard.classList.remove('show');
       loginCard.classList.remove('hide');
@@ -133,6 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   btnPhantom.addEventListener('click', async () => {
     showWalletStatus('', null);
+    const s = getAuthState();
 
     const provider = window.solana;
     if (!provider || !provider.isPhantom) {
@@ -142,18 +271,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     btnPhantom.disabled = true;
     try {
-      // 1) conectar
-      showWalletStatus('Abrindo a Phantom…', 'pending');
-      let connectResp;
-      try {
-        connectResp = await provider.connect();
-      } catch (e) {
-        showWalletStatus('Conexão cancelada na Phantom.', 'error');
+      // Caso "verificada, mas desconectada agora" — só reconectar, sem
+      // pedir assinatura de novo (já foi verificada antes).
+      if (s.walletVerified && !s.walletConnected) {
+        showWalletStatus('Reconectando…', 'pending');
+        try {
+          const resp = await provider.connect();
+          state.walletConnected = true;
+          state.connectedAddress = resp.publicKey.toString();
+          showWalletStatus('', null);
+          renderWalletUI();
+        } catch (e) {
+          showWalletStatus('Conexão cancelada na Phantom.', 'error');
+        }
         return;
       }
-      const walletAddress = connectResp.publicKey.toString();
 
-      // 2) pedir um código de verificação (nonce) para a sessão atual
+      // Qualquer outro caso: conectar (se preciso) + assinar + verificar.
+      showWalletStatus('Abrindo a Phantom…', 'pending');
+      let walletAddress = state.connectedAddress;
+      if (!s.walletConnected) {
+        let connectResp;
+        try {
+          connectResp = await provider.connect();
+        } catch (e) {
+          showWalletStatus('Conexão cancelada na Phantom.', 'error');
+          return;
+        }
+        walletAddress = connectResp.publicKey.toString();
+        state.walletConnected = true;
+        state.connectedAddress = walletAddress;
+      }
+
       showWalletStatus('Gerando código de verificação…', 'pending');
       const { data: session } = await window.ppSupabase.auth.getSession();
       if (!session.session) {
@@ -170,7 +319,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      // 3) pedir assinatura da mensagem (nunca uma transação)
       showWalletStatus('Confirme a assinatura na Phantom…', 'pending');
       let signed;
       try {
@@ -183,7 +331,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const signatureB64 = uint8ToBase64(signed.signature);
 
-      // 4) verificar no servidor
       showWalletStatus('Verificando assinatura…', 'pending');
       const { data: verifyData, error: verifyError } =
         await window.ppSupabase.functions.invoke('wallet-signature', {
@@ -201,7 +348,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       showWalletStatus('Carteira verificada com sucesso!', 'success');
-      await loadWalletStatus(session.session.user.id);
+      await loadProfile(session.session.user.id);
+      renderWalletUI();
     } finally {
       btnPhantom.disabled = false;
     }
@@ -217,6 +365,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('Erro ao sair: ' + error.message);
       return;
     }
+    state.profile = null;
+    state.walletConnected = false;
+    state.connectedAddress = null;
     await refreshSessionState();
     btnLogout.disabled = false;
     btnLogout.textContent = 'Sair';
@@ -226,6 +377,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshSessionState();
   });
 
+  attachPhantomEvents();
   consumeOAuthErrorFromUrl();
   await refreshSessionState();
 });
