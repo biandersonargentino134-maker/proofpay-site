@@ -18,6 +18,7 @@
     background:var(--surface);color:var(--ink);font-family:Inter;font-weight:600;
     font-size:14.5px;cursor:pointer;transition:border-color .12s,background .12s;}
   .auth-provider:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
+  .auth-provider:disabled{opacity:.55;cursor:default}
   .auth-provider svg{width:19px;height:19px;flex-shrink:0}
   .auth-divider{display:flex;align-items:center;gap:12px;color:var(--ink-faint);
     font-size:12.5px;margin:16px 0}
@@ -26,10 +27,18 @@
   .auth-status{font-size:12.5px;text-align:center;margin-top:10px;min-height:16px}
   .auth-status.pending{color:var(--ink-faint)}
   .auth-status.error{color:#f87171}
+  .auth-status.success{color:#4ade80}
   .auth-loading{color:var(--ink-soft);font-size:14.5px;text-align:center}
   .auth-session-card{display:none}
   .auth-session-card.show{display:block}
   .auth-login-card.hide{display:none}
+  .wallet-box{margin-top:22px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .wallet-box .wallet-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .wallet-box .wallet-label{font-size:12.5px;color:var(--ink-faint)}
+  .wallet-badge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:.02em}
+  .wallet-badge.verified{background:rgba(74,222,128,.14);color:#4ade80}
+  .wallet-badge.pending{background:rgba(255,255,255,.08);color:var(--ink-soft)}
+  .wallet-address{font-family:monospace;font-size:13px;color:var(--ink);margin-top:6px}
 </style>
 </head>
 <body>
@@ -45,7 +54,7 @@
       <!-- estado: carregando sessão -->
       <div id="auth-loading" class="auth-loading">Verificando sessão…</div>
 
-      <!-- estado: sem sessão -->
+      <!-- estado: sem sessão — só Google. Phantom exige estar autenticado primeiro. -->
       <div id="auth-login-card" class="auth-login-card hide">
         <h1>Entre no ProofPay</h1>
         <p class="auth-sub">Contrate e ofereça serviços na mesma conta.</p>
@@ -55,23 +64,31 @@
           Continuar com Google
         </button>
 
-        <div class="auth-divider">ou</div>
+        <div id="auth-login-status" class="auth-status"></div>
 
-        <button type="button" class="auth-provider" id="btn-phantom">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Continuar com Phantom
-        </button>
-
-        <div id="auth-status" class="auth-status"></div>
-
-        <p class="auth-note">Sua carteira é usada pra proteger seus pagamentos. Você pode conectar a Phantom agora ou depois, a partir da sua conta.</p>
+        <p class="auth-note">Depois de entrar, você pode conectar e verificar sua carteira Phantom pra desbloquear os recursos financeiros.</p>
       </div>
 
       <!-- estado: já autenticado -->
       <div id="auth-session-card" class="auth-session-card">
         <h1>Você já está conectado</h1>
         <p class="auth-sub" id="auth-session-email"></p>
-        <button type="button" class="btn btn-ghost btn-block" id="btn-logout">Sair</button>
+
+        <div class="wallet-box">
+          <div class="wallet-row">
+            <span class="wallet-label">Carteira</span>
+            <span class="wallet-badge pending" id="wallet-badge">não conectada</span>
+          </div>
+          <div class="wallet-address" id="wallet-address" style="display:none"></div>
+
+          <button type="button" class="auth-provider" id="btn-phantom" style="margin-top:14px">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z" stroke="#AB9FF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Conectar Phantom
+          </button>
+          <div id="wallet-status" class="auth-status"></div>
+        </div>
+
+        <button type="button" class="btn btn-ghost btn-block" id="btn-logout" style="margin-top:18px">Sair</button>
       </div>
 
     </div>

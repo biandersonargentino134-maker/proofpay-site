@@ -1,16 +1,20 @@
-// ProofPay — Tela de autenticação (Etapa 5: Google OAuth real)
+// ProofPay — Tela de autenticação (Etapa 6: conexão real com a Phantom)
 //
-// Login com Google agora é real, via Supabase Auth (OAuth). A Phantom
-// continua como placeholder — isso é a Etapa 6.
+// Fluxo da Phantom (Opção 1 aprovada): exige sessão já autenticada (Google).
+// A carteira nunca é declarada "verificada" pelo navegador — só o retorno
+// da Edge Function verify-wallet-signature pode marcar isso.
 document.addEventListener('DOMContentLoaded', async () => {
   const loadingEl = document.getElementById('auth-loading');
   const loginCard = document.getElementById('auth-login-card');
+  const loginStatusEl = document.getElementById('auth-login-status');
   const sessionCard = document.getElementById('auth-session-card');
   const sessionEmailEl = document.getElementById('auth-session-email');
-  const statusEl = document.getElementById('auth-status');
   const btnGoogle = document.getElementById('btn-google');
   const btnPhantom = document.getElementById('btn-phantom');
   const btnLogout = document.getElementById('btn-logout');
+  const walletBadge = document.getElementById('wallet-badge');
+  const walletAddressEl = document.getElementById('wallet-address');
+  const walletStatusEl = document.getElementById('wallet-status');
 
   if (typeof window.ppSupabase === 'undefined') {
     loadingEl.textContent = 'Não foi possível conectar ao Supabase. Veja o console (F12).';
@@ -18,37 +22,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  function showStatus(message, isError) {
-    statusEl.textContent = message;
-    statusEl.classList.toggle('error', !!isError);
-    statusEl.classList.toggle('pending', !isError);
+  function showLoginStatus(message, kind) {
+    loginStatusEl.textContent = message;
+    loginStatusEl.className = 'auth-status' + (kind ? ' ' + kind : '');
   }
 
-  // O Google pode voltar com ?error=...&error_description=... (ex.: usuário
-  // cancelou o consentimento) — checa isso ANTES de checar sessão, e depois
-  // limpa a URL pra não deixar esse estado preso num refresh.
+  function showWalletStatus(message, kind) {
+    walletStatusEl.textContent = message;
+    walletStatusEl.className = 'auth-status' + (kind ? ' ' + kind : '');
+  }
+
+  function uint8ToBase64(bytes) {
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return window.btoa(binary);
+  }
+
+  function truncateAddress(addr) {
+    return addr.length > 10 ? addr.slice(0, 4) + '…' + addr.slice(-4) : addr;
+  }
+
   function consumeOAuthErrorFromUrl() {
     const url = new URL(window.location.href);
     const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
     const error = url.searchParams.get('error_description') || hashParams.get('error_description')
       || url.searchParams.get('error') || hashParams.get('error');
-
     if (error) {
-      showStatus('Não foi possível entrar com Google: ' + decodeURIComponent(error), true);
+      showLoginStatus('Não foi possível entrar com Google: ' + decodeURIComponent(error), 'error');
       window.history.replaceState({}, document.title, url.pathname);
       return true;
     }
     return false;
   }
 
+  async function loadWalletStatus(userId) {
+    const { data, error } = await window.ppSupabase
+      .from('profiles')
+      .select('wallet_address, wallet_verified')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      showWalletStatus('Não foi possível carregar o status da carteira.', 'error');
+      return;
+    }
+
+    if (data.wallet_verified && data.wallet_address) {
+      walletBadge.textContent = 'verificada';
+      walletBadge.className = 'wallet-badge verified';
+      walletAddressEl.textContent = truncateAddress(data.wallet_address);
+      walletAddressEl.style.display = 'block';
+      btnPhantom.textContent = 'Trocar carteira';
+    } else {
+      walletBadge.textContent = 'não conectada';
+      walletBadge.className = 'wallet-badge pending';
+      walletAddressEl.style.display = 'none';
+    }
+  }
+
   async function refreshSessionState() {
     const { data, error } = await window.ppSupabase.auth.getSession();
-
     loadingEl.style.display = 'none';
 
     if (error) {
       loginCard.classList.remove('hide');
-      showStatus('Erro ao verificar sessão: ' + error.message, true);
+      showLoginStatus('Erro ao verificar sessão: ' + error.message, 'error');
       return;
     }
 
@@ -56,6 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       loginCard.classList.add('hide');
       sessionCard.classList.add('show');
       sessionEmailEl.textContent = data.session.user.email || 'Conta conectada';
+      await loadWalletStatus(data.session.user.id);
     } else {
       sessionCard.classList.remove('show');
       loginCard.classList.remove('hide');
@@ -64,31 +103,89 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   btnGoogle.addEventListener('click', async () => {
     btnGoogle.disabled = true;
-    const originalText = btnGoogle.textContent;
-    showStatus('Redirecionando para o Google…', false);
-
+    showLoginStatus('Redirecionando para o Google…', 'pending');
     const { error } = await window.ppSupabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        // volta pra própria auth.html, no mesmo domínio de onde a página
-        // foi carregada — evita fixar um domínio só (ex.: Netlify agora,
-        // outro depois) diretamente no código.
-        redirectTo: window.location.origin + '/auth.html'
-      }
+      options: { redirectTo: window.location.origin + '/auth.html' }
     });
-
-    // Se chegou aqui, o redirecionamento para o Google NÃO aconteceu —
-    // ou seja, deu erro antes de sair da página.
     if (error) {
       btnGoogle.disabled = false;
-      btnGoogle.textContent = originalText;
-      showStatus('Erro ao iniciar login com Google: ' + error.message, true);
+      showLoginStatus('Erro ao iniciar login com Google: ' + error.message, 'error');
     }
   });
 
-  // Placeholder — implementação real na Etapa 6.
-  btnPhantom.addEventListener('click', () => {
-    showStatus('Conexão com a Phantom será ativada na Etapa 6.', false);
+  btnPhantom.addEventListener('click', async () => {
+    showWalletStatus('', null);
+
+    const provider = window.solana;
+    if (!provider || !provider.isPhantom) {
+      showWalletStatus('Phantom não encontrada. Instale a extensão em phantom.app e recarregue a página.', 'error');
+      return;
+    }
+
+    btnPhantom.disabled = true;
+    try {
+      // 1) conectar
+      showWalletStatus('Abrindo a Phantom…', 'pending');
+      let connectResp;
+      try {
+        connectResp = await provider.connect();
+      } catch (e) {
+        showWalletStatus('Conexão cancelada na Phantom.', 'error');
+        return;
+      }
+      const walletAddress = connectResp.publicKey.toString();
+
+      // 2) pedir um código de verificação (nonce) para a sessão atual
+      showWalletStatus('Gerando código de verificação…', 'pending');
+      const { data: session } = await window.ppSupabase.auth.getSession();
+      if (!session.session) {
+        showWalletStatus('Sua sessão expirou. Recarregue a página e entre novamente.', 'error');
+        return;
+      }
+
+      const { data: challengeData, error: challengeError } =
+        await window.ppSupabase.functions.invoke('request-wallet-challenge');
+
+      if (challengeError || !challengeData || challengeData.error) {
+        showWalletStatus('Erro ao gerar código: ' + (challengeData?.error || challengeError?.message || 'desconhecido'), 'error');
+        return;
+      }
+
+      // 3) pedir assinatura da mensagem (nunca uma transação)
+      showWalletStatus('Confirme a assinatura na Phantom…', 'pending');
+      let signed;
+      try {
+        const encodedMessage = new TextEncoder().encode(challengeData.message);
+        signed = await provider.signMessage(encodedMessage, 'utf8');
+      } catch (e) {
+        showWalletStatus('Assinatura cancelada na Phantom.', 'error');
+        return;
+      }
+
+      const signatureB64 = uint8ToBase64(signed.signature);
+
+      // 4) verificar no servidor
+      showWalletStatus('Verificando assinatura…', 'pending');
+      const { data: verifyData, error: verifyError } =
+        await window.ppSupabase.functions.invoke('verify-wallet-signature', {
+          body: {
+            wallet_address: walletAddress,
+            signature_base64: signatureB64,
+            nonce: challengeData.nonce
+          }
+        });
+
+      if (verifyError || !verifyData || verifyData.error) {
+        showWalletStatus(verifyData?.error || verifyError?.message || 'Não foi possível verificar a carteira.', 'error');
+        return;
+      }
+
+      showWalletStatus('Carteira verificada com sucesso!', 'success');
+      await loadWalletStatus(session.session.user.id);
+    } finally {
+      btnPhantom.disabled = false;
+    }
   });
 
   btnLogout.addEventListener('click', async () => {
@@ -106,14 +203,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnLogout.textContent = 'Sair';
   });
 
-  // Mantém a tela em sincronia se a sessão mudar (ex.: voltando do Google).
   window.ppSupabase.auth.onAuthStateChange(() => {
     refreshSessionState();
   });
 
-  const hadOAuthError = consumeOAuthErrorFromUrl();
+  consumeOAuthErrorFromUrl();
   await refreshSessionState();
-  if (!hadOAuthError && !loginCard.classList.contains('hide')) {
-    statusEl.textContent = '';
-  }
 });
