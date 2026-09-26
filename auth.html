@@ -41,6 +41,7 @@
   .wallet-badge.warning{background:rgba(251,191,36,.14);color:#fbbf24}
   .wallet-address{font-family:monospace;font-size:13px;color:var(--ink);margin-top:6px}
   .wallet-note{font-size:12px;color:var(--ink-faint);margin-top:8px;line-height:1.5}
+  .gate-banner{font-size:13px;color:#fbbf24;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:10px 14px;margin-bottom:18px}
 </style>
 </head>
 <body>
@@ -73,6 +74,7 @@
 
       <!-- estado: já autenticado -->
       <div id="auth-session-card" class="auth-session-card">
+        <div id="gate-banner" class="gate-banner" style="display:none">Esta função exige uma carteira Phantom verificada.</div>
         <h1>Você já está conectado</h1>
         <p class="auth-sub" id="auth-session-email"></p>
 

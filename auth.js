@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const walletAddressEl = document.getElementById('wallet-address');
   const walletNoteEl = document.getElementById('wallet-note');
   const walletStatusEl = document.getElementById('wallet-status');
+  const gateBannerEl = document.getElementById('gate-banner');
 
   if (typeof window.ppSupabase === 'undefined') {
     loadingEl.textContent = 'Não foi possível conectar ao Supabase. Veja o console (F12).';
@@ -85,6 +86,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
     return window.btoa(binary);
+  }
+
+
+  function maybeReturnToProtectedPage() {
+    const redirectTo = sessionStorage.getItem('pp_redirect_after_login');
+    if (!redirectTo) return false;
+
+    const walletRequired = sessionStorage.getItem('pp_wallet_required') === '1';
+    const s = getAuthState();
+
+    if (!s.authenticated) return false;
+    if (walletRequired && !s.walletVerified) {
+      gateBannerEl.style.display = 'block';
+      return false;
+    }
+
+    sessionStorage.removeItem('pp_redirect_after_login');
+    sessionStorage.removeItem('pp_wallet_required');
+    window.location.replace(redirectTo);
+    return true;
   }
 
   function truncateAddress(addr) {
@@ -240,6 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await loadProfile(state.session.user.id);
       await trySilentReconnect();
       renderWalletUI();
+      maybeReturnToProtectedPage();
     } else {
       sessionCard.classList.remove('show');
       loginCard.classList.remove('hide');
@@ -350,6 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       showWalletStatus('Carteira verificada com sucesso!', 'success');
       await loadProfile(session.session.user.id);
       renderWalletUI();
+      maybeReturnToProtectedPage();
     } finally {
       btnPhantom.disabled = false;
     }
