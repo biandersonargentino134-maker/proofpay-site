@@ -32,6 +32,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     walletStatusEl.className = 'auth-status' + (kind ? ' ' + kind : '');
   }
 
+
+  async function extractInvokeError(error) {
+    if (!error) return 'Erro desconhecido.';
+    const resp = error.context;
+    if (resp && typeof resp.clone === 'function') {
+      try {
+        const body = await resp.clone().json();
+        if (body && (body.error || body.message)) return body.error || body.message;
+      } catch (e) { /* corpo não é JSON */ }
+      try {
+        const text = await resp.clone().text();
+        if (text) return text;
+      } catch (e) { /* sem corpo legível */ }
+    }
+    return error.message || 'Erro desconhecido.';
+  }
+
   function uint8ToBase64(bytes) {
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
@@ -148,7 +165,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         await window.ppSupabase.functions.invoke('request-wallet-challenge');
 
       if (challengeError || !challengeData || challengeData.error) {
-        showWalletStatus('Erro ao gerar código: ' + (challengeData?.error || challengeError?.message || 'desconhecido'), 'error');
+        const msg = challengeData?.error || await extractInvokeError(challengeError);
+        showWalletStatus('Erro ao gerar código: ' + msg, 'error');
         return;
       }
 
@@ -168,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 4) verificar no servidor
       showWalletStatus('Verificando assinatura…', 'pending');
       const { data: verifyData, error: verifyError } =
-        await window.ppSupabase.functions.invoke('verify-wallet-signature', {
+        await window.ppSupabase.functions.invoke('wallet-signature', {
           body: {
             wallet_address: walletAddress,
             signature_base64: signatureB64,
@@ -177,7 +195,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
       if (verifyError || !verifyData || verifyData.error) {
-        showWalletStatus(verifyData?.error || verifyError?.message || 'Não foi possível verificar a carteira.', 'error');
+        const msg = verifyData?.error || await extractInvokeError(verifyError);
+        showWalletStatus(msg, 'error');
         return;
       }
 
