@@ -24,8 +24,10 @@
      <button type="button" class="lang-btn" data-lang="pt" onclick="ppSetLanguage('pt')">PT</button>
      <button type="button" class="lang-btn" data-lang="en" onclick="ppSetLanguage('en')">EN</button>
     </div>
-    <a class="btn btn-ghost" href="auth.html" style="padding:8px 14px;font-size:13.5px" data-i18n="nav_login">Entrar</a>
-    <a class="btn btn-primary" href="auth.html" style="padding:8px 14px;font-size:13.5px" data-i18n="nav_signup">Criar conta</a>
+    <span id="pp-account-slot">
+     <a class="btn btn-ghost" href="auth.html" style="padding:8px 14px;font-size:13.5px" data-i18n="nav_login">Entrar</a>
+     <a class="btn btn-primary" href="auth.html" style="padding:8px 14px;font-size:13.5px" data-i18n="nav_signup">Criar conta</a>
+    </span>
    </nav>
   </div>
  </header>
@@ -362,5 +364,8 @@
 <script src="i18n.js"></script>
 <script src="main.js"></script>
 <script src="hero-bg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="account-header.js"></script>
 </body>
 </html>
