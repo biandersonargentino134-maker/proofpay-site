@@ -7,6 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="require-auth.js"></script>
 <style>
 :root{
   --bg:#FAFAF9; --surface:#FFFFFF; --ink:#15171E; --ink-soft:#63666F; --ink-faint:#9A9CA4;
@@ -178,6 +181,7 @@ const I = {
  wallet:'<svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>',
  user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>',
  help:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4"/><path d="M12 17h.01"/></svg>',
+ logout:'<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
  settings:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
  bell:'<svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
  plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
@@ -210,14 +214,15 @@ function renderShell(active){
   <div class="navsplit">
    <div class="navlink" onclick="go('dashboard')">${I.help}Ajuda</div>
    <div class="navlink" onclick="go('dashboard')">${I.settings}Configurações</div>
-   <div class="profcell"><div class="avatar">JA</div><div><div style="font-size:13.5px;font-weight:600">João Almeida</div><div class="faint" style="font-size:11.5px">Dev Full Stack</div></div></div>
+   <div class="navlink" onclick="ppLogout()">${I.logout}Sair</div>
+  <div class="profcell"><div class="avatar">${ppAccount.initials}</div><div><div style="font-size:13.5px;font-weight:600">${ppAccount.name}</div><div class="faint" style="font-size:11.5px">${ppAccount.walletVerified ? 'Carteira verificada' : 'Carteira não conectada'}</div></div></div>
   </div>`;
  document.getElementById('topbar').innerHTML = `
   <div class="searchbox">${I.search}Buscar acordos, serviços...</div>
   <div class="topbar-right">
     ${I.bell}
     <div class="balancepill">${I.wallet}${money(1250)}</div>
-    <div class="avatar">JA</div>
+    <div class="avatar">${ppAccount.initials}</div>
     <button class="btn btn-accent btn-sm" onclick="go('novo-acordo')">${I.plus}Novo acordo</button>
   </div>`;
  document.getElementById('bottomnav').innerHTML = [['dashboard',I.dash],['acordos',I.file],['explorar',I.search],['carteira',I.wallet],['perfil',I.user]]
@@ -616,6 +621,41 @@ SCREENS.carteira = ()=>{
  </div>`;
 };
 
+/* ---------- CONTA REAL (Etapa 9 / conexão inicial) ---------- */
+const ppAccount = { name: 'Conta', initials: '••', email: '', walletVerified: false, loaded: false };
+
+function ppInitials(name) {
+  const parts = name.trim().split(/\s+/);
+  const chars = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
+  return chars.toUpperCase();
+}
+
+async function ppLoadAccount() {
+  if (typeof window.ppSupabase === 'undefined') return;
+  const { data } = await window.ppSupabase.auth.getSession();
+  if (!data.session) return; // require-auth.js já teria redirecionado antes disso
+
+  const user = data.session.user;
+  const { data: profile } = await window.ppSupabase
+    .from('profiles')
+    .select('full_name, wallet_verified')
+    .eq('id', user.id)
+    .single();
+
+  const name = (profile && profile.full_name) || (user.email ? user.email.split('@')[0] : 'Conta');
+  ppAccount.name = name;
+  ppAccount.initials = ppInitials(name);
+  ppAccount.email = user.email || '';
+  ppAccount.walletVerified = !!(profile && profile.wallet_verified);
+  ppAccount.loaded = true;
+}
+
+async function ppLogout() {
+  if (typeof window.ppSupabase === 'undefined') { window.location.href = 'index.html'; return; }
+  await window.ppSupabase.auth.signOut();
+  window.location.href = 'index.html';
+}
+
 /* ---------- ROUTER ---------- */
 function go(id){
  document.getElementById('screen-landing').classList.remove('show');
@@ -631,7 +671,10 @@ function go(id){
  document.getElementById('appShell').classList.add('show');
  window.scrollTo(0,0);
 }
-go('landing');
+(async function boot() {
+  await ppLoadAccount();
+  go('dashboard');
+})();
 </script>
 </body>
 </html>
