@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-client.js"></script>
+<script src="i18n.js"></script>
 <script src="require-auth.js"></script>
 <style>
 :root{
@@ -200,30 +201,32 @@ const money = n => '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0
 
 /* ---------- SHARED APP SHELL ---------- */
 const NAV = [
- ['dashboard','Dashboard',I.grid],
- ['acordos','Meus acordos',I.file],
- ['explorar','Explorar serviços',I.search],
- ['servicos','Meus serviços',I.briefcase],
- ['carteira','Carteira',I.wallet],
- ['perfil','Perfil',I.user],
+ ['dashboard','nav_dashboard',I.grid],
+ ['acordos','nav_agreements',I.file],
+ ['explorar','nav_explore',I.search],
+ ['servicos','nav_myservices',I.briefcase],
+ ['carteira','nav_wallet',I.wallet],
+ ['perfil','nav_profile',I.user],
 ];
+let ppCurrentNav = 'dashboard';
 function renderShell(active){
+ ppCurrentNav = active;
  document.getElementById('sidebar').innerHTML = `
   <div class="brand"><div class="mark"></div><span>ProofPay</span></div>
-  ${NAV.map(([id,label,ic])=>`<div class="navlink ${active===id?'active':''}" onclick="go('${id}')">${ic}${label}</div>`).join('')}
+  ${NAV.map(([id,labelKey,ic])=>`<div class="navlink ${active===id?'active':''}" onclick="go('${id}')">${ic}${ppT(labelKey)}</div>`).join('')}
   <div class="navsplit">
-   <div class="navlink" onclick="go('dashboard')">${I.help}Ajuda</div>
-   <div class="navlink" onclick="go('dashboard')">${I.settings}Configurações</div>
-   <div class="navlink" onclick="ppLogout()">${I.logout}Sair</div>
-  <div class="profcell"><div class="avatar">${ppAccount.initials}</div><div><div style="font-size:13.5px;font-weight:600">${ppAccount.name}</div><div class="faint" style="font-size:11.5px">${ppAccount.walletVerified ? 'Carteira verificada' : 'Carteira não conectada'}</div></div></div>
+   <div class="navlink" onclick="go('dashboard')">${I.help}${ppT('nav_help')}</div>
+   <div class="navlink" onclick="go('dashboard')">${I.settings}${ppT('nav_settings')}</div>
+   <div class="navlink" onclick="ppLogout()">${I.logout}${ppT('btn_logout')}</div>
+  <div class="profcell"><div class="avatar">${ppAccount.initials}</div><div><div style="font-size:13.5px;font-weight:600">${ppAccount.name}</div><div class="faint" style="font-size:11.5px">${ppAccount.walletVerified ? ppT('account_wallet_verified') : ppT('account_wallet_pending')}</div></div></div>
   </div>`;
  document.getElementById('topbar').innerHTML = `
-  <div class="searchbox">${I.search}Buscar acordos, serviços...</div>
+  <div class="searchbox">${I.search}${ppT('search_placeholder')}</div>
   <div class="topbar-right">
     ${I.bell}
     <div class="balancepill">${I.wallet}${money(1250)}</div>
     <div class="avatar">${ppAccount.initials}</div>
-    <button class="btn btn-accent btn-sm" onclick="go('novo-acordo')">${I.plus}Novo acordo</button>
+    <button class="btn btn-accent btn-sm" onclick="go('novo-acordo')">${I.plus}${ppT('btn_new_agreement')}</button>
   </div>`;
  document.getElementById('bottomnav').innerHTML = [['dashboard',I.dash],['acordos',I.file],['explorar',I.search],['carteira',I.wallet],['perfil',I.user]]
   .map(([id,ic])=>`<div class="bnitem ${active===id?'active':''}" onclick="go('${id}')">${ic}</div>`).join('');
@@ -277,7 +280,13 @@ SCREENS.landing = ()=>`
  <div class="pp-chainwrap">${PP_CHAIN}</div>
  <div style="border-bottom:1px solid rgba(255,255,255,.08)"><div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding:20px 28px">
   <div class="brand"><div class="mark pp-mark"></div><span style="color:#fff">ProofPay</span></div>
-  <div style="display:flex;gap:10px"><button class="btn pp-btn-ghost btn-sm" onclick="go('auth')">Entrar</button><button class="btn pp-btn-primary btn-sm" onclick="go('auth')">Criar conta</button></div>
+  <div style="display:flex;align-items:center;gap:14px">
+   <div class="lang-switch">
+    <button type="button" class="lang-btn" data-lang="pt" onclick="ppSetLanguage('pt')" style="background:transparent;border:none;color:rgba(255,255,255,.5);font-family:Inter;font-weight:600;font-size:12px;padding:5px 9px;cursor:pointer">PT</button>
+    <button type="button" class="lang-btn" data-lang="en" onclick="ppSetLanguage('en')" style="background:transparent;border:none;color:rgba(255,255,255,.5);font-family:Inter;font-weight:600;font-size:12px;padding:5px 9px;cursor:pointer">EN</button>
+   </div>
+   <div style="display:flex;gap:10px"><button class="btn pp-btn-ghost btn-sm" onclick="go('auth')">${ppT('nav_login')}</button><button class="btn pp-btn-primary btn-sm" onclick="go('auth')">${ppT('nav_signup')}</button></div>
+  </div>
  </div></div>
  <div class="wrap" style="padding-top:76px;padding-bottom:70px">
   <div style="max-width:600px">
@@ -340,15 +349,15 @@ SCREENS.auth = ()=>`
  <div style="width:100%;max-width:400px">
   <div class="brand" style="justify-content:center;padding-bottom:28px"><div class="mark pp-mark"></div><span style="color:#fff">ProofPay</span></div>
   <div class="pp-card-dark shadow" style="padding:22px">
-   <h2 style="font-size:20px;margin:0 0 4px;color:#fff">Criar sua conta</h2>
-   <p class="pp-muted" style="font-size:13.5px;margin:0 0 22px">Contrate e ofereça serviços na mesma conta.</p>
-   <div class="field"><label>Nome</label><input placeholder="João Almeida"></div>
-   <div class="field"><label>E-mail</label><input placeholder="joao@email.com"></div>
-   <div class="field"><label>Senha</label><input type="password" placeholder="••••••••"></div>
-   <button class="btn pp-btn-primary btn-block" onclick="go('dashboard')">Criar conta</button>
-   <div style="display:flex;align-items:center;gap:10px;margin:18px 0;color:rgba(255,255,255,.35);font-size:12.5px"><div style="flex:1;height:1px;background:rgba(255,255,255,.12)"></div>ou<div style="flex:1;height:1px;background:rgba(255,255,255,.12)"></div></div>
-   <button class="btn pp-btn-ghost btn-block" onclick="go('dashboard')">${I.wallet} Conectar carteira Solana</button>
-   <p class="pp-faint" style="font-size:12.5px;text-align:center;margin:18px 0 0">Já tem conta? <a onclick="go('dashboard')" style="color:#e3e4e7;cursor:pointer;font-weight:600">Entrar</a></p>
+   <h2 style="font-size:20px;margin:0 0 4px;color:#fff">${ppT('auth_title')}</h2>
+   <p class="pp-muted" style="font-size:13.5px;margin:0 0 22px">${ppT('auth_desc')}</p>
+   <div class="field"><label>${ppT('label_name')}</label><input placeholder="${ppT('placeholder_name')}"></div>
+   <div class="field"><label>${ppT('label_email')}</label><input placeholder="${ppT('placeholder_email')}"></div>
+   <div class="field"><label>${ppT('label_password')}</label><input type="password" placeholder="••••••••"></div>
+   <button class="btn pp-btn-primary btn-block" onclick="go('dashboard')">${ppT('btn_signup')}</button>
+   <div style="display:flex;align-items:center;gap:10px;margin:18px 0;color:rgba(255,255,255,.35);font-size:12.5px"><div style="flex:1;height:1px;background:rgba(255,255,255,.12)"></div>${ppT('divider_or')}<div style="flex:1;height:1px;background:rgba(255,255,255,.12)"></div></div>
+   <button class="btn pp-btn-ghost btn-block" onclick="go('dashboard')">${ppT('btn_wallet')}</button>
+   <p class="pp-faint" style="font-size:12.5px;text-align:center;margin:18px 0 0">${ppT('auth_have_account')} <a onclick="go('dashboard')" style="color:#e3e4e7;cursor:pointer;font-weight:600">${ppT('auth_login_link')}</a></p>
   </div>
  </div>
 </div>`;
@@ -671,6 +680,20 @@ function go(id){
  document.getElementById('appShell').classList.add('show');
  window.scrollTo(0,0);
 }
+document.addEventListener('pp:langchange', () => {
+  if (document.getElementById('screen-landing').classList.contains('show')) {
+    document.getElementById('screen-landing').innerHTML = SCREENS.landing();
+    return;
+  }
+  if (document.getElementById('screen-auth').classList.contains('show')) {
+    document.getElementById('screen-auth').innerHTML = SCREENS.auth();
+    return;
+  }
+  if (document.getElementById('appShell').classList.contains('show')) {
+    renderShell(ppCurrentNav);
+  }
+});
+
 (async function boot() {
   await ppLoadAccount();
   go('dashboard');
