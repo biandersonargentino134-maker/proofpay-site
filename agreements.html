@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ProofPay — Meus Acordos</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .ag-screen{min-height:100vh;background:radial-gradient(120% 90% at 50% 0%,#1c1d22 0%,#0a0a0c 60%),#0a0a0c}
+  .ag-header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px}
+  .ag-header nav{display:flex;gap:16px;font-size:13.5px}
+  .ag-header nav a{color:var(--ink-soft)}
+  .ag-main{padding:24px 28px;max-width:760px;margin:0 auto}
+  .ag-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:22px 24px;margin-bottom:20px}
+  .ag-card h2{font-size:15px;margin:0 0 14px;color:var(--ink-soft)}
+  .ag-field{margin-bottom:14px}
+  .ag-field label{display:block;font-size:12.5px;color:var(--ink-faint);margin-bottom:6px}
+  .ag-field input,.ag-field textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:var(--ink);font-family:Inter;font-size:14px}
+  .ag-field textarea{min-height:80px;resize:vertical}
+  .ag-form-status{font-size:12.5px;margin-top:8px;min-height:16px}
+  .ag-form-status.error{color:#f87171}
+  .ag-form-status.success{color:#4ade80}
+  .ag-list-empty{font-size:13.5px;color:var(--ink-faint)}
+  .ag-item{border-top:1px solid var(--line);padding:14px 0;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .ag-item:first-child{border-top:none;padding-top:0}
+  .ag-item-title{font-size:14.5px;font-weight:600}
+  .ag-item-meta{font-size:12.5px;color:var(--ink-faint);margin-top:2px}
+  .ag-status-pill{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--ink-soft);white-space:nowrap}
+  .ag-subtabs{display:flex;gap:8px;margin-bottom:16px}
+  .ag-subtab{font-size:13px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);cursor:pointer;color:var(--ink-soft)}
+  .ag-subtab.active{background:var(--ink);color:#0a0a0c;border-color:var(--ink)}
+</style>
+</head>
+<body>
+
+<div class="ag-screen">
+  <header class="ag-header">
+    <a class="brand" href="index.html"><div class="mark"></div><span>ProofPay</span></a>
+    <nav>
+      <a href="app.html">Dashboard</a>
+      <a href="agreements.html">Meus acordos</a>
+    </nav>
+  </header>
+
+  <main class="ag-main">
+    <h1 style="margin-bottom:18px">Meus acordos</h1>
+
+    <div class="ag-card">
+      <h2>Criar acordo</h2>
+      <form id="ag-create-form">
+        <div class="ag-field">
+          <label for="ag-title">Título</label>
+          <input type="text" id="ag-title" required maxlength="120" placeholder="Ex: Landing page para startup">
+        </div>
+        <div class="ag-field">
+          <label for="ag-description">Descreva o que precisa ser feito</label>
+          <textarea id="ag-description" required placeholder="Ex: Pago 500 USDC para criar uma landing page em React até sexta-feira."></textarea>
+        </div>
+        <div class="ag-field">
+          <label for="ag-amount">Valor (USDC)</label>
+          <input type="number" id="ag-amount" required min="0.01" step="0.01" placeholder="500">
+        </div>
+        <button type="submit" class="btn btn-primary" id="ag-create-btn">Publicar acordo</button>
+        <div id="ag-create-status" class="ag-form-status"></div>
+      </form>
+      <p style="font-size:12px;color:var(--ink-faint);margin-top:12px">
+        Este acordo fica aberto pra um prestador aceitar depois — ainda não
+        há um passo de revisão de critérios pela IA nem escolha de
+        prestador específico (isso entra em etapas futuras).
+      </p>
+    </div>
+
+    <div class="ag-card">
+      <div class="ag-subtabs">
+        <span class="ag-subtab active" id="ag-tab-hirer" data-tab="hirer">Como contratante</span>
+        <span class="ag-subtab" id="ag-tab-provider" data-tab="provider">Como prestador</span>
+      </div>
+      <div id="ag-list-hirer"><p class="ag-list-empty">Carregando…</p></div>
+      <div id="ag-list-provider" style="display:none"><p class="ag-list-empty">Carregando…</p></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="require-auth.js"></script>
+<script src="agreements.js"></script>
+</body>
+</html>
