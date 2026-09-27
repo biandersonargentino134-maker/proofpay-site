@@ -15,6 +15,7 @@
 const STATUS_LABELS = {
   draft: 'Rascunho',
   awaiting_provider: 'Aguardando prestador',
+  awaiting_funding: 'Aguardando financiamento',
   funded: 'Financiado',
   in_progress: 'Em andamento',
   delivery_submitted: 'Entrega enviada',
@@ -45,13 +46,13 @@ function renderList(container, agreements) {
   }
 
   container.innerHTML = agreements.map((a) => `
-    <div class="ag-item">
+    <a class="ag-item" href="agreement-detail.html?id=${encodeURIComponent(a.id)}" style="text-decoration:none;color:inherit">
       <div>
         <div class="ag-item-title">${escapeHtml(a.title)}</div>
         <div class="ag-item-meta">${formatAmount(a.amount_usdc)} USDC · criado em ${formatDate(a.created_at)}</div>
       </div>
       <span class="ag-status-pill">${statusLabel(a.status)}</span>
-    </div>
+    </a>
   `).join('');
 }
 
