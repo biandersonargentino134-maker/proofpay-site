@@ -34,6 +34,36 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+async function renderDeliveries(deliveries) {
+  if (!deliveries || deliveries.length === 0) return '';
+
+  const blocks = await Promise.all(deliveries.map(async (d) => {
+    const linksHtml = (d.links || []).map((l) =>
+      `<div><a href="${escapeHtml(l)}" target="_blank" rel="noopener">${escapeHtml(l)}</a></div>`
+    ).join('');
+
+    const filesHtml = (await Promise.all((d.file_paths || []).map(async (path) => {
+      const { data } = await window.ppSupabase.storage
+        .from('delivery-evidence')
+        .createSignedUrl(path, 3600);
+      const fileName = path.split('/').pop();
+      if (!data) return `<div>${escapeHtml(fileName)} (link expirado, recarregue a página)</div>`;
+      return `<div><a href="${data.signedUrl}" target="_blank" rel="noopener">${escapeHtml(fileName)}</a></div>`;
+    }))).join('');
+
+    return `
+      <div style="border-top:1px solid var(--line);padding-top:14px;margin-top:14px">
+        <div class="ad-meta">Entrega enviada em ${formatDate(d.created_at)}</div>
+        <p class="ad-desc" style="margin-top:8px">${escapeHtml(d.description)}</p>
+        ${linksHtml}
+        ${filesHtml}
+      </div>
+    `;
+  }));
+
+  return `<div style="margin-top:10px"><h2 style="font-size:13px;color:var(--ink-soft);margin:18px 0 0">Entregas</h2>${blocks.join('')}</div>`;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const contentEl = document.getElementById('ad-content');
 
@@ -69,9 +99,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     && !agreement.provider_id
     && agreement.hirer_id !== userId;
 
+  const { data: deliveries } = await window.ppSupabase
+    .from('deliveries')
+    .select('id, description, links, file_paths, created_at')
+    .eq('agreement_id', agreementId)
+    .order('created_at', { ascending: false });
+
+  const deliveriesHtml = await renderDeliveries(deliveries || []);
+
   render();
 
   function render() {
+    const canDeliverNow = agreement.provider_id === userId
+      && ['awaiting_funding', 'in_progress'].includes(agreement.status);
+
     contentEl.innerHTML = `
       <span class="ad-status-pill">${STATUS_LABELS[agreement.status] || agreement.status}</span>
       <h1 style="margin:0 0 4px">${escapeHtml(agreement.title)}</h1>
@@ -82,6 +123,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         <button type="button" class="btn btn-primary" id="ad-accept-btn" style="margin-top:18px">Aceitar acordo</button>
         <div id="ad-action-status" class="ad-action-status"></div>
       ` : ''}
+      ${canDeliverNow ? `
+        <a class="btn btn-primary" href="deliver.html?id=${encodeURIComponent(agreementId)}" style="margin-top:18px;display:inline-block">Enviar entrega</a>
+      ` : ''}
+      ${deliveriesHtml}
     `;
 
     if (canAccept) {

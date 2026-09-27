@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ProofPay — Enviar Entrega</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .dl-screen{min-height:100vh;background:radial-gradient(120% 90% at 50% 0%,#1c1d22 0%,#0a0a0c 60%),#0a0a0c}
+  .dl-header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px}
+  .dl-header nav{display:flex;gap:16px;font-size:13.5px}
+  .dl-header nav a{color:var(--ink-soft)}
+  .dl-main{padding:24px 28px;max-width:640px;margin:0 auto}
+  .dl-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:24px 26px}
+  .dl-field{margin-bottom:16px}
+  .dl-field label{display:block;font-size:12.5px;color:var(--ink-faint);margin-bottom:6px}
+  .dl-field textarea,.dl-field input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:var(--ink);font-family:Inter;font-size:14px}
+  .dl-field textarea{min-height:80px;resize:vertical}
+  .dl-hint{font-size:12px;color:var(--ink-faint);margin-top:4px}
+  .dl-status{font-size:12.5px;margin-top:10px;min-height:16px}
+  .dl-status.error{color:#f87171}
+  .dl-status.success{color:#4ade80}
+</style>
+</head>
+<body>
+
+<div class="dl-screen">
+  <header class="dl-header">
+    <a class="brand" href="index.html"><div class="mark"></div><span>ProofPay</span></a>
+    <nav>
+      <a href="app.html">Dashboard</a>
+      <a href="agreements.html">Meus acordos</a>
+    </nav>
+  </header>
+
+  <main class="dl-main">
+    <div class="dl-card">
+      <h1 style="font-size:20px;margin:0 0 4px">Enviar entrega</h1>
+      <p id="dl-agreement-title" style="color:var(--ink-faint);font-size:13.5px;margin:0 0 20px">Carregando acordo…</p>
+
+      <form id="dl-form">
+        <div class="dl-field">
+          <label for="dl-description">Descrição da entrega</label>
+          <textarea id="dl-description" required placeholder="O que foi feito, o que está pronto, observações relevantes..."></textarea>
+        </div>
+        <div class="dl-field">
+          <label for="dl-links">Links (um por linha)</label>
+          <textarea id="dl-links" placeholder="https://meusite.com&#10;https://github.com/usuario/repo"></textarea>
+          <div class="dl-hint">URL do site publicado, repositório GitHub, etc. Opcional se você já anexar arquivos.</div>
+        </div>
+        <div class="dl-field">
+          <label for="dl-files">Arquivos / screenshots</label>
+          <input type="file" id="dl-files" multiple>
+          <div class="dl-hint">Opcional. Pode selecionar mais de um arquivo.</div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="dl-submit-btn">Enviar entrega</button>
+        <div id="dl-status" class="dl-status"></div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="require-auth.js"></script>
+<script src="deliver.js"></script>
+</body>
+</html>
