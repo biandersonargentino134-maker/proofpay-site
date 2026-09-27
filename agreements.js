@@ -34,6 +34,7 @@ const STATUS_LABELS = {
   ai_verifying: 'IA verificando',
   awaiting_approval: 'Aguardando aprovação',
   approved: 'Aprovado',
+  revision_requested: 'Revisão solicitada',
   payment_pending: 'Pagamento pendente',
   completed: 'Concluído',
   cancelled: 'Cancelado',

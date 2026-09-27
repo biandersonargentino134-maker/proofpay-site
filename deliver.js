@@ -3,6 +3,14 @@
 // Quem garante que só o provider certo consegue fazer isso é a RLS
 // (deliveries_insert_own, delivery_evidence_insert, agreements_submit_
 // delivery) — este arquivo só monta as chamadas, não decide permissão.
+//
+// ETAPA 6: depois que a entrega é registrada e o status vira
+// 'delivery_submitted', chamamos a Edge Function verify-delivery na
+// hora — ela busca evidência real (URL, GitHub) e gera o relatório da
+// IA automaticamente. Se essa chamada falhar por qualquer motivo, a
+// entrega já foi salva (não se perde nada) e existe um botão de
+// retentativa manual em agreement-detail.js — por isso não travamos a
+// navegação numa falha aqui, só avisamos.
 document.addEventListener('DOMContentLoaded', async () => {
   if (typeof window.ppSupabase === 'undefined') {
     console.error('[ProofPay] deliver.js precisa do supabase-client.js carregado antes dele.');
@@ -122,6 +130,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusEl.className = 'dl-status error';
       submitBtn.disabled = false;
       return;
+    }
+
+    // 4) dispara a verificação da IA (Etapa 6). Evidência real
+    // (URL/GitHub) + comparação com os critérios pode levar alguns
+    // segundos — por isso o aviso na tela enquanto espera.
+    statusEl.textContent = 'Entrega enviada! Rodando verificação da IA (pode levar até 20s)…';
+    statusEl.className = 'dl-status';
+
+    const { error: verifyError } = await window.ppSupabase.functions.invoke('verify-delivery', {
+      body: { agreement_id: agreementId },
+    });
+
+    if (verifyError) {
+      // Não bloqueia o fluxo: a entrega já está salva. A tela de
+      // detalhe do acordo mostra um botão pra tentar de novo quando o
+      // status ainda estiver 'delivery_submitted'.
+      console.error('[ProofPay] Falha ao disparar verify-delivery:', verifyError);
     }
 
     statusEl.textContent = 'Entrega enviada!';
