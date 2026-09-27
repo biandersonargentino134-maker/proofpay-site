@@ -11,6 +11,18 @@
 // usuário, e enxergar linhas onde o usuário é hirer OU provider. Isso
 // está garantido no banco (0005_create_agreements_table.sql) — este
 // arquivo não pode contornar isso, só reflete o que a policy permite.
+//
+// ETAPA 5 — Critérios gerados por IA:
+//   - O botão "Gerar critérios com IA" chama a Edge Function
+//     generate-criteria (Groq), que só SUGERE uma lista — nunca grava
+//     nada sozinha.
+//   - A lista fica em `criteriaState`, editável na tela (texto do
+//     critério + como verificar), com remoção e adição manual.
+//   - Só quando o contratante clica em "Publicar acordo" é que a lista
+//     final (já revisada) é enviada no INSERT, na coluna `criteria`
+//     (jsonb) da tabela `agreements`.
+//   - Se a IA falhar, a seção de critérios continua funcional pra
+//     edição manual — a falha da IA nunca trava a criação do acordo.
 
 const STATUS_LABELS = {
   draft: 'Rascunho',
@@ -39,6 +51,16 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
 function renderList(container, agreements) {
   if (!agreements || agreements.length === 0) {
     container.innerHTML = '<p class="ag-list-empty">Nenhum acordo aqui ainda.</p>';
@@ -56,10 +78,19 @@ function renderList(container, agreements) {
   `).join('');
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+// Repassa erros de supabase.functions.invoke — quando a Edge Function
+// responde com status != 2xx, o corpo (com a mensagem de erro real) vem
+// em error.context, não em `data`.
+async function extractInvokeError(error) {
+  if (!error) return 'Erro desconhecido.';
+  const resp = error.context;
+  if (resp && typeof resp.clone === 'function') {
+    try {
+      const body = await resp.clone().json();
+      if (body && (body.error || body.message)) return body.error || body.message;
+    } catch (e) { /* corpo não é JSON */ }
+  }
+  return error.message || 'Erro desconhecido.';
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -86,6 +117,96 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tabHirer = document.getElementById('ag-tab-hirer');
   const tabProvider = document.getElementById('ag-tab-provider');
 
+  // --- Critérios (Etapa 5) ---
+  let criteriaState = [];
+  const criteriaListEl = document.getElementById('ag-criteria-list');
+  const criteriaEmptyEl = document.getElementById('ag-criteria-empty');
+  const generateBtn = document.getElementById('ag-generate-criteria-btn');
+  const generateStatusEl = document.getElementById('ag-generate-status');
+  const addCriterionBtn = document.getElementById('ag-add-criterion-btn');
+
+  function renderCriteria() {
+    criteriaEmptyEl.style.display = criteriaState.length === 0 ? '' : 'none';
+    criteriaListEl.innerHTML = criteriaState.map((c, i) => `
+      <div class="ag-criteria-item" data-index="${i}">
+        <input type="text" data-field="criterion" value="${escapeAttr(c.criterion)}" placeholder="Critério (ex: Página responsiva)">
+        <input type="text" data-field="how_to_verify" value="${escapeAttr(c.how_to_verify)}" placeholder="Como verificar (opcional)">
+        <button type="button" class="ag-criteria-remove-btn" data-index="${i}" aria-label="Remover critério">×</button>
+      </div>
+    `).join('');
+  }
+
+  criteriaListEl.addEventListener('input', (e) => {
+    const item = e.target.closest('.ag-criteria-item');
+    if (!item) return;
+    const index = Number(item.dataset.index);
+    const field = e.target.dataset.field;
+    if (!criteriaState[index] || !field) return;
+    criteriaState[index][field] = e.target.value;
+  });
+
+  criteriaListEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.ag-criteria-remove-btn');
+    if (!btn) return;
+    criteriaState.splice(Number(btn.dataset.index), 1);
+    renderCriteria();
+  });
+
+  addCriterionBtn.addEventListener('click', () => {
+    criteriaState.push({ criterion: '', how_to_verify: '' });
+    renderCriteria();
+    const inputs = criteriaListEl.querySelectorAll('input[data-field="criterion"]');
+    const last = inputs[inputs.length - 1];
+    if (last) last.focus();
+  });
+
+  generateBtn.addEventListener('click', async () => {
+    const title = titleInput.value.trim();
+    const description = descriptionInput.value.trim();
+
+    if (!description || description.length < 10) {
+      generateStatusEl.textContent = 'Descreva o serviço com mais detalhes antes de gerar critérios.';
+      generateStatusEl.className = 'ag-form-status error';
+      return;
+    }
+
+    generateBtn.disabled = true;
+    generateStatusEl.textContent = 'Gerando critérios com IA…';
+    generateStatusEl.className = 'ag-form-status pending';
+
+    const { data, error } = await window.ppSupabase.functions.invoke('generate-criteria', {
+      body: {
+        title,
+        description,
+        amount_usdc: parseFloat(amountInput.value) || null,
+      },
+    });
+
+    generateBtn.disabled = false;
+
+    if (error) {
+      const msg = await extractInvokeError(error);
+      generateStatusEl.textContent = msg + ' Você pode adicionar critérios manualmente abaixo.';
+      generateStatusEl.className = 'ag-form-status error';
+      return;
+    }
+
+    if (!data || !Array.isArray(data.criteria) || data.criteria.length === 0) {
+      generateStatusEl.textContent = 'A IA não retornou critérios utilizáveis. Adicione manualmente abaixo.';
+      generateStatusEl.className = 'ag-form-status error';
+      return;
+    }
+
+    criteriaState = data.criteria.map((c) => ({
+      criterion: c.criterion || '',
+      how_to_verify: c.how_to_verify || '',
+    }));
+    renderCriteria();
+    generateStatusEl.textContent = `${criteriaState.length} critérios sugeridos — revise, edite ou remova antes de publicar.`;
+    generateStatusEl.className = 'ag-form-status success';
+  });
+
+  // --- Listagem de acordos ---
   async function loadAgreements() {
     const [hirerResult, providerResult] = await Promise.all([
       window.ppSupabase
@@ -142,6 +263,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    const cleanCriteria = criteriaState
+      .map((c) => ({ criterion: (c.criterion || '').trim(), how_to_verify: (c.how_to_verify || '').trim() }))
+      .filter((c) => c.criterion);
+
+    if (cleanCriteria.length === 0) {
+      createStatusEl.textContent = 'Adicione pelo menos um critério (gerado pela IA ou manual) antes de publicar.';
+      createStatusEl.className = 'ag-form-status error';
+      return;
+    }
+
     createBtn.disabled = true;
     createStatusEl.textContent = 'Publicando…';
     createStatusEl.className = 'ag-form-status pending';
@@ -152,6 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       description,
       amount_usdc: amount,
       status: 'awaiting_provider',
+      criteria: cleanCriteria,
     });
 
     createBtn.disabled = false;
@@ -165,8 +297,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     createStatusEl.textContent = 'Acordo publicado!';
     createStatusEl.className = 'ag-form-status success';
     form.reset();
+    criteriaState = [];
+    renderCriteria();
+    generateStatusEl.textContent = '';
+    generateStatusEl.className = 'ag-form-status';
     await loadAgreements();
   });
 
+  renderCriteria();
   await loadAgreements();
 });

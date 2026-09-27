@@ -21,6 +21,7 @@
   .ag-form-status{font-size:12.5px;margin-top:8px;min-height:16px}
   .ag-form-status.error{color:#f87171}
   .ag-form-status.success{color:#4ade80}
+  .ag-form-status.pending{color:var(--ink-faint)}
   .ag-list-empty{font-size:13.5px;color:var(--ink-faint)}
   .ag-item{border-top:1px solid var(--line);padding:14px 0;display:flex;align-items:center;justify-content:space-between;gap:12px}
   .ag-item:first-child{border-top:none;padding-top:0}
@@ -30,6 +31,30 @@
   .ag-subtabs{display:flex;gap:8px;margin-bottom:16px}
   .ag-subtab{font-size:13px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);cursor:pointer;color:var(--ink-soft)}
   .ag-subtab.active{background:var(--ink);color:#0a0a0c;border-color:var(--ink)}
+
+  /* --- Critérios (Etapa 5) --- */
+  .ag-criteria-section{border-top:1px solid var(--line);margin-top:6px;padding-top:16px}
+  .ag-criteria-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+  .ag-criteria-section-head label{font-size:12.5px;color:var(--ink-faint)}
+  .ag-generate-btn{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--ink);cursor:pointer;white-space:nowrap}
+  .ag-generate-btn:hover{border-color:rgba(255,255,255,.3)}
+  .ag-generate-btn:disabled{opacity:.55;cursor:default}
+  .ag-criteria-empty{font-size:12.5px;color:var(--ink-faint);margin:10px 0}
+  .ag-criteria-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .ag-criteria-item{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center}
+  .ag-criteria-item input{padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:var(--ink);font-family:Inter;font-size:13px}
+  .ag-criteria-remove-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;
+    color:var(--ink-faint);cursor:pointer;font-size:16px;line-height:1}
+  .ag-criteria-remove-btn:hover{color:#f87171;border-color:#f87171}
+  .ag-add-criterion-btn{font-size:12.5px;font-weight:600;color:var(--ink-soft);background:transparent;border:none;
+    cursor:pointer;padding:4px 0;text-align:left}
+  .ag-add-criterion-btn:hover{color:var(--ink)}
+  @media (max-width:560px){
+    .ag-criteria-item{grid-template-columns:1fr}
+    .ag-criteria-remove-btn{justify-self:end}
+  }
 </style>
 </head>
 <body>
@@ -58,7 +83,21 @@
           <label for="ag-description">Descreva o que precisa ser feito</label>
           <textarea id="ag-description" required placeholder="Ex: Pago 500 USDC para criar uma landing page em React até sexta-feira."></textarea>
         </div>
-        <div class="ag-field">
+
+        <div class="ag-criteria-section">
+          <div class="ag-criteria-section-head">
+            <label>Critérios de aceite</label>
+            <button type="button" class="ag-generate-btn" id="ag-generate-criteria-btn">✦ Gerar critérios com IA</button>
+          </div>
+          <p id="ag-criteria-empty" class="ag-criteria-empty">
+            Nenhum critério ainda. Gere sugestões com IA a partir da descrição acima, ou adicione manualmente.
+          </p>
+          <div id="ag-criteria-list" class="ag-criteria-list"></div>
+          <button type="button" class="ag-add-criterion-btn" id="ag-add-criterion-btn">+ Adicionar critério manualmente</button>
+          <div id="ag-generate-status" class="ag-form-status"></div>
+        </div>
+
+        <div class="ag-field" style="margin-top:14px">
           <label for="ag-amount">Valor (USDC)</label>
           <input type="number" id="ag-amount" required min="0.01" step="0.01" placeholder="500">
         </div>
@@ -67,8 +106,9 @@
       </form>
       <p style="font-size:12px;color:var(--ink-faint);margin-top:12px">
         Este acordo fica aberto pra um prestador aceitar depois — ainda não
-        há um passo de revisão de critérios pela IA nem escolha de
-        prestador específico (isso entra em etapas futuras).
+        há escolha de prestador específico (isso entra em etapa futura).
+        Os critérios de aceite servem de base pra verificação da entrega
+        mais adiante — você pode editá-los livremente antes de publicar.
       </p>
     </div>
 

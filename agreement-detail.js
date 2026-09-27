@@ -5,6 +5,12 @@
 // verdade é a policy agreements_accept_open no banco. Se alguém tentar
 // burlar isso mexendo no HTML/JS pelo navegador, o Supabase recusa o
 // update de qualquer forma.
+//
+// ETAPA 5: passamos a selecionar e mostrar `criteria` (gerado por IA e
+// revisado pelo contratante na criação — ver agreements.js). Isso não
+// muda nenhuma regra de autorização, só exibe o que já está no banco.
+// A comparação critério × evidência (verificação da IA) é a Etapa 6,
+// ainda não implementada.
 const STATUS_LABELS = {
   draft: 'Rascunho',
   awaiting_provider: 'Aguardando prestador',
@@ -32,6 +38,24 @@ function formatAmount(amount) {
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function renderCriteriaList(criteria) {
+  if (!Array.isArray(criteria) || criteria.length === 0) return '';
+
+  const items = criteria.map((c) => `
+    <div class="ad-criteria-item">
+      <div class="ad-criteria-text">${escapeHtml(c.criterion || '')}</div>
+      ${c.how_to_verify ? `<div class="ad-criteria-verify">Como verificar: ${escapeHtml(c.how_to_verify)}</div>` : ''}
+    </div>
+  `).join('');
+
+  return `
+    <div style="margin-top:18px">
+      <h2 style="font-size:13px;color:var(--ink-soft);margin:0 0 8px">Critérios de aceite</h2>
+      <div class="ad-criteria-list">${items}</div>
+    </div>
+  `;
 }
 
 async function renderDeliveries(deliveries) {
@@ -86,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: agreement, error } = await window.ppSupabase
     .from('agreements')
-    .select('id, title, description, amount_usdc, status, hirer_id, provider_id, created_at')
+    .select('id, title, description, amount_usdc, status, criteria, hirer_id, provider_id, created_at')
     .eq('id', agreementId)
     .single();
 
@@ -106,6 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     .order('created_at', { ascending: false });
 
   const deliveriesHtml = await renderDeliveries(deliveries || []);
+  const criteriaHtml = renderCriteriaList(agreement.criteria);
 
   render();
 
@@ -118,6 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <h1 style="margin:0 0 4px">${escapeHtml(agreement.title)}</h1>
       <div class="ad-amount">${formatAmount(agreement.amount_usdc)} USDC</div>
       <p class="ad-desc">${escapeHtml(agreement.description)}</p>
+      ${criteriaHtml}
       <div class="ad-meta">Publicado em ${formatDate(agreement.created_at)}</div>
       ${canAccept ? `
         <button type="button" class="btn btn-primary" id="ad-accept-btn" style="margin-top:18px">Aceitar acordo</button>
