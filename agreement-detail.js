@@ -24,6 +24,7 @@ const STATUS_LABELS = {
   awaiting_approval: 'Aguardando aprovação',
   approved: 'Aprovado',
   revision_requested: 'Revisão solicitada',
+  cancellation_requested: 'Cancelamento solicitado',
   payment_pending: 'Pagamento pendente',
   completed: 'Concluído',
   cancelled: 'Cancelado',
@@ -162,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: agreement, error } = await window.ppSupabase
     .from('agreements')
-    .select('id, title, description, amount_usdc, status, criteria, hirer_id, provider_id, created_at')
+    .select('id, title, description, amount_usdc, status, criteria, hirer_id, provider_id, created_at, cancel_requested_by, cancel_requested_at, cancel_reason, pre_cancel_status')
     .eq('id', agreementId)
     .single();
 
@@ -229,6 +230,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     return '';
   }
 
+  // --- Cancelamento (3 fases — ver 0010_agreement_cancellation.sql) ---
+  function cancelHtml() {
+    // Fase 1: ninguém aceitou ainda — contratante cancela livre.
+    if (agreement.status === 'awaiting_provider' && isHirer) {
+      return `
+        <div style="margin-top:18px">
+          <button type="button" class="btn btn-ghost" id="ad-cancel-free-btn">Cancelar acordo</button>
+          <div id="ad-cancel-status" class="ad-action-status"></div>
+        </div>
+      `;
+    }
+
+    // Fase 2: já tem prestador, sem entrega ainda — pedir cancelamento
+    // (precisa de consentimento do outro lado).
+    if (['awaiting_funding', 'in_progress'].includes(agreement.status) && (isHirer || isProvider)) {
+      return `
+        <div style="margin-top:18px">
+          <button type="button" class="btn btn-ghost" id="ad-cancel-request-toggle-btn">Solicitar cancelamento</button>
+          <div id="ad-cancel-request-form" style="display:none;margin-top:10px">
+            <textarea id="ad-cancel-reason" placeholder="Motivo do cancelamento (obrigatório)" style="width:100%;min-height:60px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink);font-family:Inter;font-size:13.5px"></textarea>
+            <button type="button" class="btn btn-primary" id="ad-cancel-request-submit-btn" style="margin-top:8px">Enviar pedido de cancelamento</button>
+          </div>
+          <div id="ad-cancel-status" class="ad-action-status"></div>
+        </div>
+      `;
+    }
+
+    // Cancelamento pendente: um lado pediu, esperando o outro decidir.
+    if (agreement.status === 'cancellation_requested') {
+      const isRequester = agreement.cancel_requested_by === userId;
+      const otherRole = isHirer ? 'o prestador' : 'o contratante'; // a outra parte, em relação a quem está vendo
+
+      if (isRequester) {
+        return `
+          <div class="ad-banner warning" style="margin-top:18px">
+            Você solicitou o cancelamento deste acordo. Aguardando resposta de ${otherRole}.
+            ${agreement.cancel_reason ? `<div style="margin-top:6px">Motivo informado: ${escapeHtml(agreement.cancel_reason)}</div>` : ''}
+            <div style="margin-top:8px">
+              <button type="button" class="btn btn-ghost" id="ad-cancel-withdraw-btn">Desistir do pedido</button>
+            </div>
+            <div id="ad-cancel-status" class="ad-action-status"></div>
+          </div>
+        `;
+      }
+
+      if (isHirer || isProvider) {
+        return `
+          <div class="ad-banner warning" style="margin-top:18px">
+            ${otherRole === 'o prestador' ? 'O prestador' : 'O contratante'} solicitou cancelar este acordo.
+            ${agreement.cancel_reason ? `<div style="margin-top:6px">Motivo informado: ${escapeHtml(agreement.cancel_reason)}</div>` : ''}
+            <div class="ad-decision-actions" style="margin-top:8px">
+              <button type="button" class="btn btn-primary" id="ad-cancel-accept-btn">Aceitar cancelamento</button>
+              <button type="button" class="btn btn-ghost" id="ad-cancel-reject-btn">Recusar</button>
+            </div>
+            <div id="ad-cancel-status" class="ad-action-status"></div>
+          </div>
+        `;
+      }
+    }
+
+    return '';
+  }
+
   function decisionActionsHtml() {
     if (agreement.status !== 'awaiting_approval' || !isHirer) return '';
     return `
@@ -263,6 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${statusBannerHtml()}
       ${reportHtml}
       ${decisionActionsHtml()}
+      ${cancelHtml()}
       ${deliveriesHtml}
     `;
 
@@ -275,6 +340,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (approveBtn) approveBtn.addEventListener('click', () => onDecision('approved'));
     const reviseBtn = document.getElementById('ad-revise-btn');
     if (reviseBtn) reviseBtn.addEventListener('click', () => onDecision('revision_requested'));
+
+    const cancelFreeBtn = document.getElementById('ad-cancel-free-btn');
+    if (cancelFreeBtn) cancelFreeBtn.addEventListener('click', onCancelFree);
+
+    const cancelRequestToggleBtn = document.getElementById('ad-cancel-request-toggle-btn');
+    if (cancelRequestToggleBtn) {
+      cancelRequestToggleBtn.addEventListener('click', () => {
+        document.getElementById('ad-cancel-request-form').style.display = 'block';
+        cancelRequestToggleBtn.style.display = 'none';
+      });
+    }
+    const cancelRequestSubmitBtn = document.getElementById('ad-cancel-request-submit-btn');
+    if (cancelRequestSubmitBtn) cancelRequestSubmitBtn.addEventListener('click', onRequestCancel);
+
+    const cancelWithdrawBtn = document.getElementById('ad-cancel-withdraw-btn');
+    if (cancelWithdrawBtn) cancelWithdrawBtn.addEventListener('click', onWithdrawCancel);
+
+    const cancelAcceptBtn = document.getElementById('ad-cancel-accept-btn');
+    if (cancelAcceptBtn) cancelAcceptBtn.addEventListener('click', onCancelDecision.bind(null, true));
+    const cancelRejectBtn = document.getElementById('ad-cancel-reject-btn');
+    if (cancelRejectBtn) cancelRejectBtn.addEventListener('click', onCancelDecision.bind(null, false));
   }
 
   async function onAccept() {
@@ -350,6 +436,143 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     agreement.status = newStatus;
+    render();
+  }
+
+  // --- Cancelamento ---
+
+  async function onCancelFree() {
+    const btn = document.getElementById('ad-cancel-free-btn');
+    const statusEl = document.getElementById('ad-cancel-status');
+    if (!window.confirm('Cancelar este acordo? Ele será removido das listagens ativas.')) return;
+
+    btn.disabled = true;
+    statusEl.textContent = 'Cancelando…';
+    statusEl.className = 'ad-action-status';
+
+    const { error: updateError } = await window.ppSupabase
+      .from('agreements')
+      .update({ status: 'cancelled' })
+      .eq('id', agreementId);
+
+    if (updateError) {
+      statusEl.textContent = 'Erro ao cancelar: ' + updateError.message;
+      statusEl.className = 'ad-action-status error';
+      btn.disabled = false;
+      return;
+    }
+
+    agreement.status = 'cancelled';
+    render();
+  }
+
+  async function onRequestCancel() {
+    const submitBtn = document.getElementById('ad-cancel-request-submit-btn');
+    const statusEl = document.getElementById('ad-cancel-status');
+    const reason = document.getElementById('ad-cancel-reason').value.trim();
+
+    if (!reason) {
+      statusEl.textContent = 'Escreva um motivo antes de enviar.';
+      statusEl.className = 'ad-action-status error';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Enviando pedido…';
+    statusEl.className = 'ad-action-status';
+
+    const { error: updateError } = await window.ppSupabase
+      .from('agreements')
+      .update({
+        status: 'cancellation_requested',
+        cancel_requested_by: userId,
+        cancel_requested_at: new Date().toISOString(),
+        cancel_reason: reason,
+        pre_cancel_status: agreement.status,
+      })
+      .eq('id', agreementId);
+
+    if (updateError) {
+      statusEl.textContent = 'Erro: ' + updateError.message;
+      statusEl.className = 'ad-action-status error';
+      submitBtn.disabled = false;
+      return;
+    }
+
+    agreement.pre_cancel_status = agreement.status;
+    agreement.status = 'cancellation_requested';
+    agreement.cancel_requested_by = userId;
+    agreement.cancel_reason = reason;
+    render();
+  }
+
+  async function onWithdrawCancel() {
+    const btn = document.getElementById('ad-cancel-withdraw-btn');
+    const statusEl = document.getElementById('ad-cancel-status');
+    btn.disabled = true;
+    statusEl.textContent = 'Desfazendo pedido…';
+    statusEl.className = 'ad-action-status';
+
+    const revertStatus = agreement.pre_cancel_status || 'awaiting_funding';
+
+    const { error: updateError } = await window.ppSupabase
+      .from('agreements')
+      .update({
+        status: revertStatus,
+        cancel_requested_by: null,
+        cancel_requested_at: null,
+        cancel_reason: null,
+        pre_cancel_status: null,
+      })
+      .eq('id', agreementId);
+
+    if (updateError) {
+      statusEl.textContent = 'Erro: ' + updateError.message;
+      statusEl.className = 'ad-action-status error';
+      btn.disabled = false;
+      return;
+    }
+
+    agreement.status = revertStatus;
+    agreement.cancel_requested_by = null;
+    agreement.cancel_reason = null;
+    agreement.pre_cancel_status = null;
+    render();
+  }
+
+  async function onCancelDecision(accept) {
+    const statusEl = document.getElementById('ad-cancel-status');
+    const acceptBtn = document.getElementById('ad-cancel-accept-btn');
+    const rejectBtn = document.getElementById('ad-cancel-reject-btn');
+    acceptBtn.disabled = true;
+    rejectBtn.disabled = true;
+    statusEl.textContent = 'Salvando…';
+    statusEl.className = 'ad-action-status';
+
+    const newStatus = accept ? 'cancelled' : (agreement.pre_cancel_status || 'awaiting_funding');
+    const payload = accept
+      ? { status: 'cancelled' }
+      : { status: newStatus, cancel_requested_by: null, cancel_requested_at: null, cancel_reason: null, pre_cancel_status: null };
+
+    const { error: updateError } = await window.ppSupabase
+      .from('agreements')
+      .update(payload)
+      .eq('id', agreementId);
+
+    if (updateError) {
+      statusEl.textContent = 'Erro: ' + updateError.message;
+      statusEl.className = 'ad-action-status error';
+      acceptBtn.disabled = false;
+      rejectBtn.disabled = false;
+      return;
+    }
+
+    agreement.status = newStatus;
+    if (!accept) {
+      agreement.cancel_requested_by = null;
+      agreement.cancel_reason = null;
+      agreement.pre_cancel_status = null;
+    }
     render();
   }
 });

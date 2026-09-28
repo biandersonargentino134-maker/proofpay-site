@@ -23,6 +23,7 @@ const STATUS_LABELS = {
   awaiting_approval: 'Aguardando aprovação',
   approved: 'Aprovado',
   revision_requested: 'Revisão solicitada',
+  cancellation_requested: 'Cancelamento solicitado',
   payment_pending: 'Pagamento pendente',
   completed: 'Concluído',
   cancelled: 'Cancelado',
@@ -65,6 +66,14 @@ function pendingActionFor(agreement, userId) {
       role: 'Prestador',
       label: 'Revisão solicitada — enviar nova entrega',
       href: `deliver.html?id=${encodeURIComponent(agreement.id)}`,
+    };
+  }
+
+  if (agreement.status === 'cancellation_requested' && agreement.cancel_requested_by !== userId && (isHirer || isProvider)) {
+    return {
+      role: isHirer ? 'Contratante' : 'Prestador',
+      label: 'Pedido de cancelamento aguardando sua resposta',
+      href: `agreement-detail.html?id=${encodeURIComponent(agreement.id)}`,
     };
   }
 
@@ -132,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // a policy agreements_select_own (0005) já cobre os dois casos.
   const { data: agreements, error: agreementsError } = await window.ppSupabase
     .from('agreements')
-    .select('id, title, status, hirer_id, provider_id')
+    .select('id, title, status, hirer_id, provider_id, cancel_requested_by')
     .or(`hirer_id.eq.${userId},provider_id.eq.${userId}`);
 
   if (agreementsError) {
