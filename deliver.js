@@ -132,6 +132,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Log da timeline — nunca trava o fluxo se falhar, é só exibição.
+    await window.ppSupabase.from('agreement_events').insert({
+      agreement_id: agreementId,
+      event_type: 'delivery_submitted',
+      actor_id: userId,
+    });
+
     // 4) dispara a verificação da IA (Etapa 6). Evidência real
     // (URL/GitHub) + comparação com os critérios pode levar alguns
     // segundos — por isso o aviso na tela enquanto espera.

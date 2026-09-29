@@ -279,14 +279,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     createStatusEl.textContent = 'Publicando…';
     createStatusEl.className = 'ag-form-status pending';
 
-    const { error } = await window.ppSupabase.from('agreements').insert({
+    const { data: inserted, error } = await window.ppSupabase.from('agreements').insert({
       hirer_id: userId,
       title,
       description,
       amount_usdc: amount,
       status: 'awaiting_provider',
       criteria: cleanCriteria,
-    });
+    }).select('id').single();
 
     createBtn.disabled = false;
 
@@ -294,6 +294,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       createStatusEl.textContent = 'Erro ao publicar: ' + error.message;
       createStatusEl.className = 'ag-form-status error';
       return;
+    }
+
+    if (inserted && inserted.id) {
+      const { error: eventError } = await window.ppSupabase.from('agreement_events').insert({
+        agreement_id: inserted.id,
+        event_type: 'created',
+        actor_id: userId,
+      });
+      if (eventError) console.error('[ProofPay] Falha ao logar evento na timeline:', eventError.message);
     }
 
     createStatusEl.textContent = 'Acordo publicado!';

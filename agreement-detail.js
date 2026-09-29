@@ -69,32 +69,96 @@ function renderCriteriaList(criteria) {
   `;
 }
 
-function renderReport(verification) {
-  if (!verification) return '';
+function renderVerificationHistory(verifications) {
+  if (!verifications || verifications.length === 0) return '';
 
-  const report = Array.isArray(verification.report) ? verification.report : [];
-  const itemsHtml = report.map((item) => `
-    <div class="ad-report-item">
-      <div class="ad-report-item-head">
-        <span class="ad-report-icon ${item.result}">${RESULT_ICONS[item.result] || '?'}</span>
-        ${escapeHtml(item.criterion)}
+  const blocks = verifications.map((verification, i) => {
+    const report = Array.isArray(verification.report) ? verification.report : [];
+    const itemsHtml = report.map((item) => `
+      <div class="ad-report-item">
+        <div class="ad-report-item-head">
+          <span class="ad-report-icon ${item.result}">${RESULT_ICONS[item.result] || '?'}</span>
+          ${escapeHtml(item.criterion)}
+        </div>
+        <div class="ad-report-evidence">${escapeHtml(item.evidence || '')}</div>
       </div>
-      <div class="ad-report-evidence">${escapeHtml(item.evidence || '')}</div>
-    </div>
-  `).join('');
+    `).join('');
+
+    const isLatest = i === 0;
+
+    return `
+      <div style="${isLatest ? '' : 'opacity:.75;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)'}">
+        <div class="ad-meta" style="margin-top:0">
+          ${isLatest ? 'Verificação mais recente' : 'Verificação anterior'} — ${formatDateTime(verification.created_at)}
+        </div>
+        <div class="ad-report-summary">
+          <span class="ad-report-badge verified">${verification.verified_count} verificado(s)</span>
+          <span class="ad-report-badge partial">${verification.partial_count} parcial(is)</span>
+          <span class="ad-report-badge not_verified">${verification.not_verified_count} não verificado(s)</span>
+        </div>
+        ${itemsHtml}
+      </div>
+    `;
+  });
 
   return `
     <div style="margin-top:18px">
-      <h2 style="font-size:13px;color:var(--ink-soft);margin:0 0 4px">Relatório da IA</h2>
-      <div class="ad-meta" style="margin-top:0">Gerado em ${formatDateTime(verification.created_at)}</div>
-      <div class="ad-report-summary">
-        <span class="ad-report-badge verified">${verification.verified_count} verificado(s)</span>
-        <span class="ad-report-badge partial">${verification.partial_count} parcial(is)</span>
-        <span class="ad-report-badge not_verified">${verification.not_verified_count} não verificado(s)</span>
-      </div>
-      ${itemsHtml}
+      <h2 style="font-size:13px;color:var(--ink-soft);margin:0 0 4px">Relatório${verifications.length > 1 ? 's' : ''} da IA</h2>
+      ${blocks.join('')}
     </div>
   `;
+}
+
+const EVENT_LABELS = {
+  created: 'Acordo criado',
+  accepted: 'Aceito pelo prestador',
+  delivery_submitted: 'Entrega enviada',
+  ai_verified: 'IA verificou a entrega',
+  approved: 'Entrega aprovada',
+  revision_requested: 'Revisão solicitada',
+  cancellation_requested: 'Cancelamento solicitado',
+  cancellation_accepted: 'Cancelamento aceito',
+  cancellation_rejected: 'Cancelamento recusado',
+  cancellation_withdrawn: 'Pedido de cancelamento retirado',
+  cancelled: 'Acordo cancelado',
+};
+
+function renderTimeline(events, isHirer, isProvider, userId) {
+  if (!events || events.length === 0) return '';
+
+  const items = events.map((e) => {
+    let who = '';
+    if (e.actor_id === userId) who = 'Você';
+    else if (e.event_type === 'ai_verified') who = 'IA';
+    else if (e.actor_id) who = 'A outra parte';
+
+    const label = EVENT_LABELS[e.event_type] || e.event_type;
+    return `
+      <div style="display:flex;gap:10px;align-items:baseline;padding:6px 0">
+        <div style="font-size:12px;color:var(--ink-faint);white-space:nowrap;min-width:120px">${formatDateTime(e.created_at)}</div>
+        <div style="font-size:13.5px">${escapeHtml(label)}${who ? ` <span style="color:var(--ink-faint)">— ${who}</span>` : ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div style="margin-top:18px">
+      <h2 style="font-size:13px;color:var(--ink-soft);margin:0 0 8px">Linha do tempo</h2>
+      <div>${items}</div>
+    </div>
+  `;
+}
+
+// Loga um evento na timeline. Nunca trava o fluxo principal se falhar —
+// isso é só exibição, não autorização (ver 0011_agreement_events.sql).
+async function logEvent(agreementId, eventType, actorId, meta) {
+  const { error } = await window.ppSupabase.from('agreement_events').insert({
+    agreement_id: agreementId,
+    event_type: eventType,
+    actor_id: actorId,
+    meta: meta || null,
+  });
+  if (error) console.error('[ProofPay] Falha ao logar evento na timeline:', eventType, error.message);
 }
 
 async function renderDeliveries(deliveries) {
@@ -179,7 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     && !agreement.provider_id
     && agreement.hirer_id !== userId;
 
-  const [{ data: deliveries }, { data: verifications }] = await Promise.all([
+  const [{ data: deliveries }, { data: verifications }, { data: events }] = await Promise.all([
     window.ppSupabase
       .from('deliveries')
       .select('id, description, links, file_paths, created_at')
@@ -189,14 +253,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       .from('ai_verifications')
       .select('id, report, verified_count, partial_count, not_verified_count, created_at')
       .eq('agreement_id', agreementId)
-      .order('created_at', { ascending: false })
-      .limit(1),
+      .order('created_at', { ascending: false }),
+    window.ppSupabase
+      .from('agreement_events')
+      .select('id, event_type, actor_id, created_at')
+      .eq('agreement_id', agreementId)
+      .order('created_at', { ascending: true }),
   ]);
 
-  const latestVerification = (verifications && verifications[0]) || null;
   const deliveriesHtml = await renderDeliveries(deliveries || []);
   const criteriaHtml = renderCriteriaList(agreement.criteria);
-  const reportHtml = renderReport(latestVerification);
+  const reportHtml = renderVerificationHistory(verifications || []);
+  const timelineHtml = renderTimeline(events || [], isHirer, isProvider, userId);
 
   render();
 
@@ -329,6 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${decisionActionsHtml()}
       ${cancelHtml()}
       ${deliveriesHtml}
+      ${timelineHtml}
     `;
 
     if (canAccept) {
@@ -387,6 +456,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     agreement.status = 'awaiting_funding';
     agreement.provider_id = userId;
     render();
+    logEvent(agreementId, 'accepted', userId);
   }
 
   async function onRetryVerify() {
@@ -437,6 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     agreement.status = newStatus;
     render();
+    logEvent(agreementId, newStatus, userId);
   }
 
   // --- Cancelamento ---
@@ -464,6 +535,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     agreement.status = 'cancelled';
     render();
+    logEvent(agreementId, 'cancelled', userId);
   }
 
   async function onRequestCancel() {
@@ -504,6 +576,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     agreement.cancel_requested_by = userId;
     agreement.cancel_reason = reason;
     render();
+    logEvent(agreementId, 'cancellation_requested', userId, { reason });
   }
 
   async function onWithdrawCancel() {
@@ -538,6 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     agreement.cancel_reason = null;
     agreement.pre_cancel_status = null;
     render();
+    logEvent(agreementId, 'cancellation_withdrawn', userId);
   }
 
   async function onCancelDecision(accept) {
@@ -574,5 +648,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       agreement.pre_cancel_status = null;
     }
     render();
+    logEvent(agreementId, accept ? 'cancellation_accepted' : 'cancellation_rejected', userId);
   }
 });
