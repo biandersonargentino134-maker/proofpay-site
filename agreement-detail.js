@@ -39,6 +39,14 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function escapeAttr(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+// Estados em que o contratante ainda pode anexar materiais/informações
+// para o prestador (precisa bater com 0012_edit_agreement_and_attachments.sql).
+const ATTACH_STATUSES = ['awaiting_funding', 'in_progress', 'revision_requested'];
+
 function formatAmount(amount) {
   return Number(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -121,6 +129,8 @@ const EVENT_LABELS = {
   cancellation_rejected: 'Cancelamento recusado',
   cancellation_withdrawn: 'Pedido de cancelamento retirado',
   cancelled: 'Acordo cancelado',
+  edited: 'Acordo editado pelo contratante',
+  attachment_added: 'Material adicionado pelo contratante',
 };
 
 function renderTimeline(events, isHirer, isProvider, userId) {
@@ -227,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: agreement, error } = await window.ppSupabase
     .from('agreements')
-    .select('id, title, description, amount_usdc, status, criteria, hirer_id, provider_id, created_at, cancel_requested_by, cancel_requested_at, cancel_reason, pre_cancel_status')
+    .select('id, title, description, amount_usdc, status, criteria, hirer_id, provider_id, created_at, cancel_requested_by, cancel_requested_at, cancel_reason, pre_cancel_status, updated_at')
     .eq('id', agreementId)
     .single();
 
@@ -262,11 +272,147 @@ document.addEventListener('DOMContentLoaded', async () => {
   ]);
 
   const deliveriesHtml = await renderDeliveries(deliveries || []);
-  const criteriaHtml = renderCriteriaList(agreement.criteria);
+  let criteriaHtml = renderCriteriaList(agreement.criteria);
   const reportHtml = renderVerificationHistory(verifications || []);
   const timelineHtml = renderTimeline(events || [], isHirer, isProvider, userId);
 
+  // Edição do acordo (só antes de alguém aceitar) e materiais anexados
+  // pelo contratante (só depois de aceito).
+  let editing = false;
+  let editDraft = null;
+  let attachmentsList = await loadAttachments();
+
   render();
+
+  async function loadAttachments() {
+    const { data } = await window.ppSupabase
+      .from('agreement_attachments')
+      .select('id, uploader_id, file_path, file_name, note, created_at')
+      .eq('agreement_id', agreementId)
+      .order('created_at', { ascending: false });
+
+    return Promise.all((data || []).map(async (a) => {
+      if (!a.file_path) return { ...a, url: null };
+      const { data: signed } = await window.ppSupabase.storage
+        .from('agreement-attachments')
+        .createSignedUrl(a.file_path, 3600);
+      return { ...a, url: signed ? signed.signedUrl : null };
+    }));
+  }
+
+  function attachmentsHtml() {
+    const canAttach = isHirer && ATTACH_STATUSES.includes(agreement.status);
+    if (attachmentsList.length === 0 && !canAttach) return '';
+
+    const items = attachmentsList.map((a) => `
+      <div class="ad-attach-item">
+        <div>
+          ${a.file_name ? (a.url
+            ? `<a href="${a.url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`
+            : `${escapeHtml(a.file_name)} (link expirado, recarregue a página)`) : ''}
+          ${a.note ? `<div class="ad-attach-note">${escapeHtml(a.note)}</div>` : ''}
+          <div class="ad-meta" style="margin-top:2px">Adicionado em ${formatDateTime(a.created_at)}</div>
+        </div>
+        ${canAttach && a.uploader_id === userId ? `<button type="button" class="btn btn-ghost ad-attach-remove" data-id="${a.id}">Remover</button>` : ''}
+      </div>
+    `).join('');
+
+    const form = canAttach ? `
+      <div class="ad-attach-form">
+        <textarea id="ad-attach-note" placeholder="Informação para o prestador (opcional se anexar arquivo)"></textarea>
+        <input type="file" id="ad-attach-files" multiple>
+        <div><button type="button" class="btn btn-primary" id="ad-attach-btn">Adicionar</button></div>
+        <div id="ad-attach-status" class="ad-action-status"></div>
+      </div>
+    ` : '';
+
+    return `
+      <div style="margin-top:18px">
+        <h2 style="font-size:13px;color:var(--ink-soft);margin:0 0 8px">Materiais e informações do contratante</h2>
+        ${items || '<p class="ad-meta" style="margin-top:0">Nada adicionado ainda.</p>'}
+        ${form}
+      </div>
+    `;
+  }
+
+  // --- Edição (antes de alguém aceitar) ---
+
+  function startEdit() {
+    editDraft = {
+      title: agreement.title,
+      description: agreement.description,
+      amount: String(agreement.amount_usdc),
+      criteria: (Array.isArray(agreement.criteria) ? agreement.criteria : []).map((c) => ({
+        criterion: c.criterion || '',
+        how_to_verify: c.how_to_verify || '',
+      })),
+    };
+    editing = true;
+    render();
+  }
+
+  function editFormHtml() {
+    const d = editDraft;
+    const rows = d.criteria.map((c, i) => `
+      <div class="ad-edit-criteria-item">
+        <input type="text" data-cfield="criterion" data-index="${i}" value="${escapeAttr(c.criterion)}" placeholder="Critério">
+        <input type="text" data-cfield="how_to_verify" data-index="${i}" value="${escapeAttr(c.how_to_verify)}" placeholder="Como verificar (opcional)">
+        <button type="button" class="ad-edit-remove" data-index="${i}" aria-label="Remover critério">×</button>
+      </div>
+    `).join('');
+
+    return `
+      <h1 style="margin:0 0 14px;font-size:20px">Editar acordo</h1>
+      <div class="ad-edit-field">
+        <label for="ad-edit-title">Título</label>
+        <input type="text" id="ad-edit-title" maxlength="120" value="${escapeAttr(d.title)}">
+      </div>
+      <div class="ad-edit-field">
+        <label for="ad-edit-description">Descrição</label>
+        <textarea id="ad-edit-description">${escapeHtml(d.description)}</textarea>
+      </div>
+      <div class="ad-edit-field">
+        <label for="ad-edit-amount">Valor (USDC)</label>
+        <input type="number" id="ad-edit-amount" min="0.01" step="0.01" value="${escapeAttr(d.amount)}">
+      </div>
+      <div class="ad-edit-field">
+        <label>Critérios de aceite</label>
+        <div class="ad-edit-criteria-list">${rows}</div>
+        <button type="button" class="ad-edit-add" id="ad-edit-add-criterion">+ Adicionar critério</button>
+      </div>
+      <div class="ad-decision-actions">
+        <button type="button" class="btn btn-primary" id="ad-edit-save">Salvar alterações</button>
+        <button type="button" class="btn btn-ghost" id="ad-edit-cancel">Cancelar</button>
+      </div>
+      <div id="ad-edit-status" class="ad-action-status"></div>
+    `;
+  }
+
+  function bindEditForm() {
+    const byId = (id) => document.getElementById(id);
+    byId('ad-edit-title').addEventListener('input', (e) => { editDraft.title = e.target.value; });
+    byId('ad-edit-description').addEventListener('input', (e) => { editDraft.description = e.target.value; });
+    byId('ad-edit-amount').addEventListener('input', (e) => { editDraft.amount = e.target.value; });
+
+    contentEl.querySelectorAll('[data-cfield]').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const item = editDraft.criteria[Number(e.target.dataset.index)];
+        if (item) item[e.target.dataset.cfield] = e.target.value;
+      });
+    });
+    contentEl.querySelectorAll('.ad-edit-remove').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        editDraft.criteria.splice(Number(btn.dataset.index), 1);
+        render();
+      });
+    });
+    byId('ad-edit-add-criterion').addEventListener('click', () => {
+      editDraft.criteria.push({ criterion: '', how_to_verify: '' });
+      render();
+    });
+    byId('ad-edit-cancel').addEventListener('click', () => { editing = false; render(); });
+    byId('ad-edit-save').addEventListener('click', onSaveEdit);
+  }
 
   function statusBannerHtml() {
     if (agreement.status === 'ai_verifying') {
@@ -373,6 +519,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function render() {
+    if (editing) {
+      contentEl.innerHTML = editFormHtml();
+      bindEditForm();
+      return;
+    }
+
+    // Só o contratante, e só enquanto ninguém aceitou (o banco também
+    // trava isso — ver 0012_edit_agreement_and_attachments.sql).
+    const canEdit = isHirer && agreement.status === 'awaiting_provider' && !agreement.provider_id;
+
     // 'revision_requested' não entra aqui de propósito — esse caso já
     // tem o próprio link "Enviar nova entrega" dentro do banner acima.
     const canDeliverNow = agreement.provider_id === userId
@@ -385,6 +541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <p class="ad-desc">${escapeHtml(agreement.description)}</p>
       ${criteriaHtml}
       <div class="ad-meta">Publicado em ${formatDate(agreement.created_at)}</div>
+      ${canEdit ? `<button type="button" class="btn btn-ghost" id="ad-edit-btn" style="margin-top:14px">Editar acordo</button>` : ''}
       ${canAccept ? `
         <button type="button" class="btn btn-primary" id="ad-accept-btn" style="margin-top:18px">Aceitar acordo</button>
         <div id="ad-action-status" class="ad-action-status"></div>
@@ -396,6 +553,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${reportHtml}
       ${decisionActionsHtml()}
       ${cancelHtml()}
+      ${attachmentsHtml()}
       ${deliveriesHtml}
       ${timelineHtml}
     `;
@@ -403,6 +561,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (canAccept) {
       document.getElementById('ad-accept-btn').addEventListener('click', onAccept);
     }
+    const editBtn = document.getElementById('ad-edit-btn');
+    if (editBtn) editBtn.addEventListener('click', startEdit);
+    const attachBtn = document.getElementById('ad-attach-btn');
+    if (attachBtn) attachBtn.addEventListener('click', onAttach);
+    contentEl.querySelectorAll('.ad-attach-remove').forEach((btn) => {
+      btn.addEventListener('click', () => onRemoveAttachment(btn.dataset.id));
+    });
     const retryBtn = document.getElementById('ad-retry-verify-btn');
     if (retryBtn) retryBtn.addEventListener('click', onRetryVerify);
     const approveBtn = document.getElementById('ad-approve-btn');
@@ -439,15 +604,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     statusEl.textContent = 'Aceitando…';
     statusEl.className = 'ad-action-status';
 
-    const { error: updateError } = await window.ppSupabase
+    // .eq('updated_at', ...) garante que o prestador só aceita os termos
+    // que ele realmente viu: se o contratante editou o acordo enquanto
+    // a página estava aberta, o update não acha nenhuma linha.
+    const { data: accepted, error: updateError } = await window.ppSupabase
       .from('agreements')
       .update({ provider_id: userId, status: 'awaiting_funding' })
-      .eq('id', agreementId);
+      .eq('id', agreementId)
+      .eq('updated_at', agreement.updated_at)
+      .select('id');
 
     if (updateError) {
       statusEl.textContent = 'Erro ao aceitar: ' + updateError.message;
       statusEl.className = 'ad-action-status error';
       btn.disabled = false;
+      return;
+    }
+
+    if (!accepted || accepted.length === 0) {
+      statusEl.textContent = 'Este acordo foi alterado (ou já aceito por outra pessoa) enquanto você olhava. Recarregando para você ver os termos atuais…';
+      statusEl.className = 'ad-action-status error';
+      setTimeout(() => window.location.reload(), 2500);
       return;
     }
 
@@ -457,6 +634,159 @@ document.addEventListener('DOMContentLoaded', async () => {
     agreement.provider_id = userId;
     render();
     logEvent(agreementId, 'accepted', userId);
+  }
+
+  async function onSaveEdit() {
+    const statusEl = document.getElementById('ad-edit-status');
+    const saveBtn = document.getElementById('ad-edit-save');
+
+    const title = editDraft.title.trim();
+    const description = editDraft.description.trim();
+    const amount = parseFloat(editDraft.amount);
+    const criteria = editDraft.criteria
+      .map((c) => ({ criterion: (c.criterion || '').trim(), how_to_verify: (c.how_to_verify || '').trim() }))
+      .filter((c) => c.criterion);
+
+    if (!title || !description || !amount || amount <= 0) {
+      statusEl.textContent = 'Preencha título, descrição e um valor válido.';
+      statusEl.className = 'ad-action-status error';
+      return;
+    }
+    if (criteria.length === 0) {
+      statusEl.textContent = 'Mantenha pelo menos um critério de aceite.';
+      statusEl.className = 'ad-action-status error';
+      return;
+    }
+
+    saveBtn.disabled = true;
+    statusEl.textContent = 'Salvando…';
+    statusEl.className = 'ad-action-status pending';
+
+    const { data: updated, error: updateError } = await window.ppSupabase
+      .from('agreements')
+      .update({ title, description, amount_usdc: amount, criteria })
+      .eq('id', agreementId)
+      .eq('status', 'awaiting_provider')
+      .is('provider_id', null)
+      .select('id, updated_at');
+
+    if (updateError) {
+      statusEl.textContent = 'Erro ao salvar: ' + updateError.message;
+      statusEl.className = 'ad-action-status error';
+      saveBtn.disabled = false;
+      return;
+    }
+
+    if (!updated || updated.length === 0) {
+      statusEl.textContent = 'Este acordo não pode mais ser editado (já foi aceito ou cancelado). Recarregue a página.';
+      statusEl.className = 'ad-action-status error';
+      saveBtn.disabled = false;
+      return;
+    }
+
+    agreement.title = title;
+    agreement.description = description;
+    agreement.amount_usdc = amount;
+    agreement.criteria = criteria;
+    agreement.updated_at = updated[0].updated_at;
+    criteriaHtml = renderCriteriaList(criteria);
+    editing = false;
+    render();
+    logEvent(agreementId, 'edited', userId);
+  }
+
+  async function onAttach() {
+    const noteEl = document.getElementById('ad-attach-note');
+    const filesEl = document.getElementById('ad-attach-files');
+    const btn = document.getElementById('ad-attach-btn');
+    const statusEl = document.getElementById('ad-attach-status');
+
+    const note = noteEl.value.trim();
+    const files = Array.from(filesEl.files || []);
+
+    if (!note && files.length === 0) {
+      statusEl.textContent = 'Escreva uma informação ou selecione pelo menos um arquivo.';
+      statusEl.className = 'ad-action-status error';
+      return;
+    }
+
+    btn.disabled = true;
+    let added = 0;
+    let first = true;
+
+    // Sem arquivos: uma única linha só com a nota. Com arquivos: cada
+    // arquivo vira uma linha; a nota fica junto do primeiro.
+    for (const file of (files.length ? files : [null])) {
+      let path = null;
+      let name = null;
+
+      if (file) {
+        statusEl.textContent = `Enviando ${file.name}…`;
+        statusEl.className = 'ad-action-status pending';
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        path = `${agreementId}/${Date.now()}-${safeName}`;
+        name = file.name;
+
+        const { error: uploadError } = await window.ppSupabase.storage
+          .from('agreement-attachments')
+          .upload(path, file);
+
+        if (uploadError) {
+          statusEl.textContent = `Erro ao enviar ${file.name}: ${uploadError.message}`;
+          statusEl.className = 'ad-action-status error';
+          btn.disabled = false;
+          break;
+        }
+      }
+
+      const { error: insertError } = await window.ppSupabase.from('agreement_attachments').insert({
+        agreement_id: agreementId,
+        uploader_id: userId,
+        file_path: path,
+        file_name: name,
+        note: first ? (note || null) : null,
+      });
+
+      if (insertError) {
+        if (path) await window.ppSupabase.storage.from('agreement-attachments').remove([path]);
+        statusEl.textContent = 'Erro ao registrar: ' + insertError.message;
+        statusEl.className = 'ad-action-status error';
+        btn.disabled = false;
+        break;
+      }
+
+      added += 1;
+      first = false;
+    }
+
+    if (added > 0) {
+      attachmentsList = await loadAttachments();
+      render();
+      logEvent(agreementId, 'attachment_added', userId, { count: added });
+    }
+  }
+
+  async function onRemoveAttachment(id) {
+    const item = attachmentsList.find((a) => a.id === id);
+    if (!item) return;
+    if (!window.confirm('Remover este item? O prestador deixará de vê-lo.')) return;
+
+    const { data: removed, error: deleteError } = await window.ppSupabase
+      .from('agreement_attachments')
+      .delete()
+      .eq('id', id)
+      .select('id');
+
+    if (deleteError || !removed || removed.length === 0) {
+      window.alert('Não foi possível remover' + (deleteError ? ': ' + deleteError.message : '.'));
+      return;
+    }
+
+    if (item.file_path) {
+      await window.ppSupabase.storage.from('agreement-attachments').remove([item.file_path]);
+    }
+    attachmentsList = await loadAttachments();
+    render();
   }
 
   async function onRetryVerify() {
