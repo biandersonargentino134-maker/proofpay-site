@@ -33,6 +33,32 @@
   .app-summary-number{font-size:24px;font-weight:700}
   .app-summary-label{font-size:12px;color:var(--ink-faint);margin-top:2px}
 
+  .app-summary-note{font-size:11.5px;color:var(--ink-faint);margin-top:12px;line-height:1.5}
+
+  /* --- Acordos recentes --- */
+  .app-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .app-card-head h2{margin:0}
+  .app-card-link{font-size:12.5px;color:var(--ink-soft);text-decoration:none}
+  .app-card-link:hover{color:var(--ink)}
+  .app-recent-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    border-top:1px solid var(--line);padding:13px 0;text-decoration:none;color:inherit}
+  .app-recent-item:first-child{border-top:none;padding-top:0}
+  .app-recent-title{font-size:14px;font-weight:600}
+  .app-recent-meta{font-size:12.5px;color:var(--ink-faint);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .app-status-pill{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;
+    background:rgba(255,255,255,.08);color:var(--ink-soft);white-space:nowrap}
+  .app-status-pill.done{background:rgba(74,222,128,.14);color:#4ade80}
+  .app-status-pill.attention{background:rgba(251,191,36,.14);color:#fbbf24}
+  .app-status-pill.stopped{background:rgba(248,113,113,.14);color:#f87171}
+
+  /* --- Atividade recente --- */
+  .app-activity-item{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);
+    text-decoration:none;color:inherit}
+  .app-activity-item:first-child{border-top:none;padding-top:0}
+  .app-activity-time{font-size:12px;color:var(--ink-faint);white-space:nowrap;min-width:78px}
+  .app-activity-text{font-size:13.5px}
+  .app-activity-sub{color:var(--ink-faint)}
+
   /* --- Atalhos --- */
   .app-shortcuts{display:flex;flex-wrap:wrap;gap:10px}
   .app-shortcut-btn{flex:1;min-width:150px;text-align:center;padding:12px;border-radius:10px;
@@ -77,17 +103,39 @@
     </div>
 
     <div class="app-card">
-      <h2>Seus acordos ativos</h2>
+      <h2>Resumo</h2>
       <div class="app-summary-grid">
         <div class="app-summary-box">
           <div class="app-summary-number" id="app-summary-hirer">—</div>
-          <div class="app-summary-label">como contratante</div>
+          <div class="app-summary-label">ativos como contratante</div>
         </div>
         <div class="app-summary-box">
           <div class="app-summary-number" id="app-summary-provider">—</div>
-          <div class="app-summary-label">como prestador</div>
+          <div class="app-summary-label">ativos como prestador</div>
+        </div>
+        <div class="app-summary-box">
+          <div class="app-summary-number" id="app-summary-completed">—</div>
+          <div class="app-summary-label">concluídos</div>
+        </div>
+        <div class="app-summary-box">
+          <div class="app-summary-number" id="app-summary-value">—</div>
+          <div class="app-summary-label">USDC em acordos ativos</div>
         </div>
       </div>
+      <p class="app-summary-note">O valor soma os acordos ativos e não indica fundos protegidos: o escrow on-chain ainda não está integrado.</p>
+    </div>
+
+    <div class="app-card">
+      <div class="app-card-head">
+        <h2>Acordos recentes</h2>
+        <a class="app-card-link" href="agreements.html">Ver todos →</a>
+      </div>
+      <div id="app-recent-list"><p class="app-empty">Carregando…</p></div>
+    </div>
+
+    <div class="app-card">
+      <h2>Atividade recente</h2>
+      <div id="app-activity-list"><p class="app-empty">Carregando…</p></div>
     </div>
 
     <div class="app-card">

@@ -31,6 +31,55 @@ const STATUS_LABELS = {
 
 const INACTIVE_STATUSES = ['completed', 'cancelled'];
 
+// Mesmos textos da timeline de agreement-detail.js.
+const EVENT_LABELS = {
+  created: 'Acordo criado',
+  accepted: 'Aceito pelo prestador',
+  delivery_submitted: 'Entrega enviada',
+  ai_verified: 'IA verificou a entrega',
+  approved: 'Entrega aprovada',
+  revision_requested: 'Revisão solicitada',
+  cancellation_requested: 'Cancelamento solicitado',
+  cancellation_accepted: 'Cancelamento aceito',
+  cancellation_rejected: 'Cancelamento recusado',
+  cancellation_withdrawn: 'Pedido de cancelamento retirado',
+  cancelled: 'Acordo cancelado',
+  edited: 'Acordo editado pelo contratante',
+  attachment_added: 'Material adicionado pelo contratante',
+};
+
+const RECENT_LIMIT = 5;
+const ACTIVITY_LIMIT = 8;
+
+// Cor da etiqueta de status: verde = concluído, amarelo = pede atenção
+// de alguém, vermelho = parado/cancelado, cinza = andamento normal.
+function statusClass(status) {
+  if (status === 'completed' || status === 'approved') return 'done';
+  if (status === 'cancelled') return 'stopped';
+  if (['awaiting_approval', 'revision_requested', 'cancellation_requested'].includes(status)) return 'attention';
+  return '';
+}
+
+function formatAmount(amount) {
+  return Number(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// "há 2 horas", "ontem", etc.; acima de 7 dias mostra a data.
+function formatRelative(iso) {
+  const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+  const abs = Math.abs(diffSec);
+  const rtf = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
+  if (abs < 60) return 'agora';
+  if (abs < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
+  if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), 'hour');
+  if (abs < 7 * 86400) return rtf.format(Math.round(diffSec / 86400), 'day');
+  return formatDate(iso);
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -98,6 +147,54 @@ function renderPendingList(container, items) {
   `).join('');
 }
 
+function renderRecentList(container, agreements, userId) {
+  if (agreements.length === 0) {
+    container.innerHTML = '<p class="app-empty">Você ainda não participa de nenhum acordo. <a href="agreements.html" style="color:var(--ink)">Crie o primeiro</a> ou <a href="explore.html" style="color:var(--ink)">explore serviços</a>.</p>';
+    return;
+  }
+
+  container.innerHTML = agreements.map((a) => {
+    const role = a.hirer_id === userId ? 'Contratante' : 'Prestador';
+    const cls = statusClass(a.status);
+    return `
+      <a class="app-recent-item" href="agreement-detail.html?id=${encodeURIComponent(a.id)}">
+        <div>
+          <div class="app-recent-title">${escapeHtml(a.title)}</div>
+          <div class="app-recent-meta">
+            <span class="app-action-role">${role}</span>
+            <span>${formatAmount(a.amount_usdc)} USDC · atualizado ${escapeHtml(formatRelative(a.updated_at))}</span>
+          </div>
+        </div>
+        <span class="app-status-pill${cls ? ' ' + cls : ''}">${escapeHtml(STATUS_LABELS[a.status] || a.status)}</span>
+      </a>
+    `;
+  }).join('');
+}
+
+// Quem fez o evento. profiles só deixa ler a própria linha (RLS), então
+// a outra parte aparece como "a outra parte", sem nome.
+function whoLabel(event, userId) {
+  if (!event.actor_id) return 'Sistema';
+  return event.actor_id === userId ? 'Você' : 'A outra parte';
+}
+
+function renderActivityList(container, events, titleById, userId) {
+  if (events.length === 0) {
+    container.innerHTML = '<p class="app-empty">Nenhuma atividade ainda.</p>';
+    return;
+  }
+
+  container.innerHTML = events.map((e) => `
+    <a class="app-activity-item" href="agreement-detail.html?id=${encodeURIComponent(e.agreement_id)}">
+      <div class="app-activity-time">${escapeHtml(formatRelative(e.created_at))}</div>
+      <div class="app-activity-text">
+        ${escapeHtml(EVENT_LABELS[e.event_type] || e.event_type)}
+        <span class="app-activity-sub">· ${escapeHtml(titleById.get(e.agreement_id) || 'Acordo')} · ${escapeHtml(whoLabel(e, userId))}</span>
+      </div>
+    </a>
+  `).join('');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (typeof window.ppSupabase === 'undefined') {
     console.error('[ProofPay] app.js precisa do supabase-client.js carregado antes dele.');
@@ -116,6 +213,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pendingListEl = document.getElementById('app-pending-list');
   const summaryHirerEl = document.getElementById('app-summary-hirer');
   const summaryProviderEl = document.getElementById('app-summary-provider');
+  const summaryCompletedEl = document.getElementById('app-summary-completed');
+  const summaryValueEl = document.getElementById('app-summary-value');
+  const recentListEl = document.getElementById('app-recent-list');
+  const activityListEl = document.getElementById('app-activity-list');
 
   emailEl.textContent = session.user.email || 'Conta conectada';
   greetingEl.textContent = 'Olá, ' + (session.user.email ? session.user.email.split('@')[0] : 'bem-vindo');
@@ -141,13 +242,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // a policy agreements_select_own (0005) já cobre os dois casos.
   const { data: agreements, error: agreementsError } = await window.ppSupabase
     .from('agreements')
-    .select('id, title, status, hirer_id, provider_id, cancel_requested_by')
+    .select('id, title, status, hirer_id, provider_id, cancel_requested_by, amount_usdc, created_at, updated_at')
     .or(`hirer_id.eq.${userId},provider_id.eq.${userId}`);
 
   if (agreementsError) {
     pendingListEl.innerHTML = '<p class="app-empty">Erro ao carregar acordos: ' + agreementsError.message + '</p>';
     summaryHirerEl.textContent = '—';
     summaryProviderEl.textContent = '—';
+    summaryCompletedEl.textContent = '—';
+    summaryValueEl.textContent = '—';
+    recentListEl.innerHTML = '<p class="app-empty">Erro ao carregar acordos.</p>';
+    activityListEl.innerHTML = '<p class="app-empty">Erro ao carregar atividade.</p>';
   } else {
     const list = agreements || [];
 
@@ -164,6 +269,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activeAsProvider = list.filter((a) => a.provider_id === userId && !INACTIVE_STATUSES.includes(a.status)).length;
     summaryHirerEl.textContent = String(activeAsHirer);
     summaryProviderEl.textContent = String(activeAsProvider);
+
+    const completed = list.filter((a) => a.status === 'completed').length;
+    const activeValue = list
+      .filter((a) => !INACTIVE_STATUSES.includes(a.status))
+      .reduce((sum, a) => sum + Number(a.amount_usdc || 0), 0);
+    summaryCompletedEl.textContent = String(completed);
+    summaryValueEl.textContent = formatAmount(activeValue);
+
+    // Acordos recentes: os mexidos por último (updated_at), qualquer papel.
+    const recent = [...list]
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+      .slice(0, RECENT_LIMIT);
+    renderRecentList(recentListEl, recent, userId);
+
+    // Atividade recente: eventos da timeline de todos os acordos do
+    // usuário (a RLS de agreement_events já limita a hirer/provider).
+    if (list.length === 0) {
+      renderActivityList(activityListEl, [], new Map(), userId);
+    } else {
+      const titleById = new Map(list.map((a) => [a.id, a.title]));
+      const { data: events, error: eventsError } = await window.ppSupabase
+        .from('agreement_events')
+        .select('agreement_id, event_type, actor_id, created_at')
+        .in('agreement_id', list.map((a) => a.id))
+        .order('created_at', { ascending: false })
+        .limit(ACTIVITY_LIMIT);
+
+      if (eventsError) {
+        activityListEl.innerHTML = '<p class="app-empty">Não foi possível carregar a atividade.</p>';
+      } else {
+        renderActivityList(activityListEl, events || [], titleById, userId);
+      }
+    }
   }
 
   logoutBtn.addEventListener('click', async () => {
