@@ -1,161 +1,1122 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ProofPay — Dashboard</title>
-<link rel="stylesheet" href="style.css">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1, viewport-fit=cover"
+>
+
+<title>
+  ProofPay — Dashboard
+</title>
+
+<link
+  rel="stylesheet"
+  href="style.css"
+>
+
 <style>
-  .app-screen{min-height:100vh;background:radial-gradient(120% 90% at 50% 0%,#1c1d22 0%,#0a0a0c 60%),#0a0a0c}
-  .app-header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px}
-  .app-main{padding:24px 28px;max-width:760px;margin:0 auto}
-  .app-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:22px 24px;margin-bottom:16px}
-  .app-card h2{font-size:15px;margin:0 0 10px;color:var(--ink-soft)}
-  .app-card p{margin:4px 0;font-size:14.5px}
-  .wallet-pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:999px}
-  .wallet-pill.verified{background:rgba(74,222,128,.14);color:#4ade80}
-  .wallet-pill.pending{background:rgba(255,255,255,.08);color:var(--ink-soft)}
 
-  /* --- Ações pendentes --- */
-  .app-action-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
-    border-top:1px solid var(--line);padding:13px 0;text-decoration:none;color:inherit}
-  .app-action-item:first-child{border-top:none;padding-top:0}
-  .app-action-role{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;
-    background:rgba(255,255,255,.08);color:var(--ink-soft);white-space:nowrap}
-  .app-action-title{font-size:14px;font-weight:600}
-  .app-action-desc{font-size:12.5px;color:var(--ink-faint);margin-top:2px}
-  .app-action-arrow{color:var(--ink-faint);font-size:16px}
-  .app-empty{font-size:13.5px;color:var(--ink-faint)}
+  .app-screen {
+    min-height: 100vh;
 
-  /* --- Resumo --- */
-  .app-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .app-summary-box{border:1px solid var(--line);border-radius:10px;padding:14px}
-  .app-summary-number{font-size:24px;font-weight:700}
-  .app-summary-label{font-size:12px;color:var(--ink-faint);margin-top:2px}
-
-  .app-summary-note{font-size:11.5px;color:var(--ink-faint);margin-top:12px;line-height:1.5}
-
-  /* --- Acordos recentes --- */
-  .app-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-  .app-card-head h2{margin:0}
-  .app-card-link{font-size:12.5px;color:var(--ink-soft);text-decoration:none}
-  .app-card-link:hover{color:var(--ink)}
-  .app-recent-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
-    border-top:1px solid var(--line);padding:13px 0;text-decoration:none;color:inherit}
-  .app-recent-item:first-child{border-top:none;padding-top:0}
-  .app-recent-title{font-size:14px;font-weight:600}
-  .app-recent-meta{font-size:12.5px;color:var(--ink-faint);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-  .app-status-pill{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;
-    background:rgba(255,255,255,.08);color:var(--ink-soft);white-space:nowrap}
-  .app-status-pill.done{background:rgba(74,222,128,.14);color:#4ade80}
-  .app-status-pill.attention{background:rgba(251,191,36,.14);color:#fbbf24}
-  .app-status-pill.stopped{background:rgba(248,113,113,.14);color:#f87171}
-
-  /* --- Atividade recente --- */
-  .app-activity-item{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);
-    text-decoration:none;color:inherit}
-  .app-activity-item:first-child{border-top:none;padding-top:0}
-  .app-activity-time{font-size:12px;color:var(--ink-faint);white-space:nowrap;min-width:78px}
-  .app-activity-text{font-size:13.5px}
-  .app-activity-sub{color:var(--ink-faint)}
-
-  /* --- Atalhos --- */
-  .app-shortcuts{display:flex;flex-wrap:wrap;gap:10px}
-  .app-shortcut-btn{flex:1;min-width:150px;text-align:center;padding:12px;border-radius:10px;
-    border:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:13.5px;font-weight:600}
-  .app-shortcut-btn:hover{border-color:rgba(255,255,255,.3)}
-  .app-shortcut-btn.primary{background:var(--ink);color:#0a0a0c;border-color:var(--ink)}
-
-  @media (max-width:480px){
-    .app-summary-grid{grid-template-columns:1fr}
+    background:
+      radial-gradient(
+        120% 90% at 50% 0%,
+        #1c1d22 0%,
+        #0a0a0c 60%
+      ),
+      #0a0a0c;
   }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding:
+      20px 28px;
+  }
+
+  .app-main {
+    padding:
+      24px 28px;
+
+    max-width:
+      760px;
+
+    margin:
+      0 auto;
+  }
+
+  .app-card {
+    border:
+      1px solid var(--line);
+
+    border-radius:
+      14px;
+
+    background:
+      var(--surface);
+
+    padding:
+      22px 24px;
+
+    margin-bottom:
+      16px;
+  }
+
+  .app-card h2 {
+    font-size:
+      15px;
+
+    margin:
+      0 0 10px;
+
+    color:
+      var(--ink-soft);
+  }
+
+  .app-card p {
+    margin:
+      4px 0;
+
+    font-size:
+      14.5px;
+  }
+
+  .wallet-pill {
+    display:
+      inline-flex;
+
+    align-items:
+      center;
+
+    gap:
+      6px;
+
+    font-size:
+      12.5px;
+
+    font-weight:
+      700;
+
+    padding:
+      3px 10px;
+
+    border-radius:
+      999px;
+  }
+
+  .wallet-pill.verified {
+    background:
+      rgba(
+        74,
+        222,
+        128,
+        .14
+      );
+
+    color:
+      #4ade80;
+  }
+
+  .wallet-pill.pending {
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        .08
+      );
+
+    color:
+      var(--ink-soft);
+  }
+
+  .solana-program-link {
+    font-family:
+      ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Consolas,
+      monospace;
+
+    font-size:
+      12.5px;
+
+    color:
+      var(--ink-soft);
+
+    word-break:
+      break-all;
+  }
+
+  .solana-program-link:hover {
+    color:
+      var(--ink);
+  }
+
+  .solana-note {
+    font-size:
+      12.5px !important;
+
+    color:
+      var(--ink-faint);
+
+    line-height:
+      1.5;
+  }
+
+
+  /* ========================= */
+  /* Ações pendentes           */
+  /* ========================= */
+
+  .app-action-item {
+    display:
+      flex;
+
+    align-items:
+      center;
+
+    justify-content:
+      space-between;
+
+    gap:
+      12px;
+
+    border-top:
+      1px solid var(--line);
+
+    padding:
+      13px 0;
+
+    text-decoration:
+      none;
+
+    color:
+      inherit;
+  }
+
+  .app-action-item:first-child {
+    border-top:
+      none;
+
+    padding-top:
+      0;
+  }
+
+  .app-action-role {
+    font-size:
+      11px;
+
+    font-weight:
+      700;
+
+    padding:
+      2px 8px;
+
+    border-radius:
+      999px;
+
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        .08
+      );
+
+    color:
+      var(--ink-soft);
+
+    white-space:
+      nowrap;
+  }
+
+  .app-action-title {
+    font-size:
+      14px;
+
+    font-weight:
+      600;
+  }
+
+  .app-action-desc {
+    font-size:
+      12.5px;
+
+    color:
+      var(--ink-faint);
+
+    margin-top:
+      2px;
+  }
+
+  .app-action-arrow {
+    color:
+      var(--ink-faint);
+
+    font-size:
+      16px;
+  }
+
+  .app-empty {
+    font-size:
+      13.5px;
+
+    color:
+      var(--ink-faint);
+  }
+
+
+  /* ========================= */
+  /* Resumo                    */
+  /* ========================= */
+
+  .app-summary-grid {
+    display:
+      grid;
+
+    grid-template-columns:
+      1fr 1fr;
+
+    gap:
+      12px;
+  }
+
+  .app-summary-box {
+    border:
+      1px solid var(--line);
+
+    border-radius:
+      10px;
+
+    padding:
+      14px;
+  }
+
+  .app-summary-number {
+    font-size:
+      24px;
+
+    font-weight:
+      700;
+  }
+
+  .app-summary-label {
+    font-size:
+      12px;
+
+    color:
+      var(--ink-faint);
+
+    margin-top:
+      2px;
+  }
+
+  .app-summary-note {
+    font-size:
+      11.5px;
+
+    color:
+      var(--ink-faint);
+
+    margin-top:
+      12px;
+
+    line-height:
+      1.5;
+  }
+
+
+  /* ========================= */
+  /* Acordos recentes          */
+  /* ========================= */
+
+  .app-card-head {
+    display:
+      flex;
+
+    align-items:
+      center;
+
+    justify-content:
+      space-between;
+
+    gap:
+      10px;
+
+    margin-bottom:
+      10px;
+  }
+
+  .app-card-head h2 {
+    margin:
+      0;
+  }
+
+  .app-card-link {
+    font-size:
+      12.5px;
+
+    color:
+      var(--ink-soft);
+
+    text-decoration:
+      none;
+  }
+
+  .app-card-link:hover {
+    color:
+      var(--ink);
+  }
+
+  .app-recent-item {
+    display:
+      flex;
+
+    align-items:
+      center;
+
+    justify-content:
+      space-between;
+
+    gap:
+      12px;
+
+    border-top:
+      1px solid var(--line);
+
+    padding:
+      13px 0;
+
+    text-decoration:
+      none;
+
+    color:
+      inherit;
+  }
+
+  .app-recent-item:first-child {
+    border-top:
+      none;
+
+    padding-top:
+      0;
+  }
+
+  .app-recent-title {
+    font-size:
+      14px;
+
+    font-weight:
+      600;
+  }
+
+  .app-recent-meta {
+    font-size:
+      12.5px;
+
+    color:
+      var(--ink-faint);
+
+    margin-top:
+      3px;
+
+    display:
+      flex;
+
+    flex-wrap:
+      wrap;
+
+    gap:
+      6px;
+
+    align-items:
+      center;
+  }
+
+  .app-status-pill {
+    font-size:
+      11.5px;
+
+    font-weight:
+      700;
+
+    padding:
+      3px 10px;
+
+    border-radius:
+      999px;
+
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        .08
+      );
+
+    color:
+      var(--ink-soft);
+
+    white-space:
+      nowrap;
+  }
+
+  .app-status-pill.done {
+    background:
+      rgba(
+        74,
+        222,
+        128,
+        .14
+      );
+
+    color:
+      #4ade80;
+  }
+
+  .app-status-pill.attention {
+    background:
+      rgba(
+        251,
+        191,
+        36,
+        .14
+      );
+
+    color:
+      #fbbf24;
+  }
+
+  .app-status-pill.stopped {
+    background:
+      rgba(
+        248,
+        113,
+        113,
+        .14
+      );
+
+    color:
+      #f87171;
+  }
+
+
+  /* ========================= */
+  /* Atividade                 */
+  /* ========================= */
+
+  .app-activity-item {
+    display:
+      flex;
+
+    gap:
+      10px;
+
+    align-items:
+      baseline;
+
+    padding:
+      8px 0;
+
+    border-top:
+      1px solid var(--line);
+
+    text-decoration:
+      none;
+
+    color:
+      inherit;
+  }
+
+  .app-activity-item:first-child {
+    border-top:
+      none;
+
+    padding-top:
+      0;
+  }
+
+  .app-activity-time {
+    font-size:
+      12px;
+
+    color:
+      var(--ink-faint);
+
+    white-space:
+      nowrap;
+
+    min-width:
+      78px;
+  }
+
+  .app-activity-text {
+    font-size:
+      13.5px;
+  }
+
+  .app-activity-sub {
+    color:
+      var(--ink-faint);
+  }
+
+
+  /* ========================= */
+  /* Atalhos                   */
+  /* ========================= */
+
+  .app-shortcuts {
+    display:
+      flex;
+
+    flex-wrap:
+      wrap;
+
+    gap:
+      10px;
+  }
+
+  .app-shortcut-btn {
+    flex:
+      1;
+
+    min-width:
+      150px;
+
+    text-align:
+      center;
+
+    padding:
+      12px;
+
+    border-radius:
+      10px;
+
+    border:
+      1px solid var(--line);
+
+    color:
+      var(--ink);
+
+    text-decoration:
+      none;
+
+    font-size:
+      13.5px;
+
+    font-weight:
+      600;
+  }
+
+  .app-shortcut-btn:hover {
+    border-color:
+      rgba(
+        255,
+        255,
+        255,
+        .3
+      );
+  }
+
+  .app-shortcut-btn.primary {
+    background:
+      var(--ink);
+
+    color:
+      #0a0a0c;
+
+    border-color:
+      var(--ink);
+  }
+
+  @media (
+    max-width:
+      480px
+  ) {
+    .app-summary-grid {
+      grid-template-columns:
+        1fr;
+    }
+  }
+
 </style>
+
 </head>
+
+
 <body>
 
+
 <div class="app-screen">
+
+
+  <!-- ======================================= -->
+  <!-- HEADER                                  -->
+  <!-- ======================================= -->
+
   <header class="app-header">
-    <a class="brand" href="index.html"><div class="mark"></div><span>ProofPay</span></a>
-    <nav style="display:flex;align-items:center;gap:16px;font-size:13.5px">
-      <a href="agreements.html" style="color:var(--ink-soft)">Meus acordos</a>
-      <a href="explore.html" style="color:var(--ink-soft)">Explorar serviços</a>
+
+    <a
+      class="brand"
+      href="index.html"
+    >
+      <div class="mark"></div>
+
+      <span>
+        ProofPay
+      </span>
+    </a>
+
+
+    <nav
+      style="
+        display:flex;
+        align-items:center;
+        gap:16px;
+        font-size:13.5px
+      "
+    >
+
+      <a
+        href="agreements.html"
+        style="
+          color:var(--ink-soft)
+        "
+      >
+        Meus acordos
+      </a>
+
+
+      <a
+        href="explore.html"
+        style="
+          color:var(--ink-soft)
+        "
+      >
+        Explorar serviços
+      </a>
+
+
       <div id="pp-account-slot">
-        <a href="auth.html">Entrar</a>
+
+        <a href="auth.html">
+          Entrar
+        </a>
+
       </div>
+
     </nav>
+
   </header>
 
+
+
+  <!-- ======================================= -->
+  <!-- CONTEÚDO                                -->
+  <!-- ======================================= -->
+
   <main class="app-main">
-    <h1 id="app-greeting">Dashboard</h1>
+
+
+    <h1 id="app-greeting">
+      Dashboard
+    </h1>
+
+
+
+    <!-- ===================================== -->
+    <!-- CONTA                                 -->
+    <!-- ===================================== -->
 
     <div class="app-card">
-      <h2>Conta</h2>
-      <p id="app-email">—</p>
-      <p>
-        Carteira:
-        <span id="app-wallet-pill" class="wallet-pill pending">verificando…</span>
+
+      <h2>
+        Conta
+      </h2>
+
+      <p id="app-email">
+        —
       </p>
+
+      <p>
+
+        Carteira:
+
+        <span
+          id="app-wallet-pill"
+          class="wallet-pill pending"
+        >
+          verificando…
+        </span>
+
+      </p>
+
     </div>
 
-    <div class="app-card">
-      <h2>O que você precisa fazer agora</h2>
-      <div id="app-pending-list"><p class="app-empty">Carregando…</p></div>
-    </div>
+
+
+    <!-- ===================================== -->
+    <!-- SOLANA                                -->
+    <!-- ===================================== -->
 
     <div class="app-card">
-      <h2>Resumo</h2>
-      <div class="app-summary-grid">
-        <div class="app-summary-box">
-          <div class="app-summary-number" id="app-summary-hirer">—</div>
-          <div class="app-summary-label">ativos como contratante</div>
-        </div>
-        <div class="app-summary-box">
-          <div class="app-summary-number" id="app-summary-provider">—</div>
-          <div class="app-summary-label">ativos como prestador</div>
-        </div>
-        <div class="app-summary-box">
-          <div class="app-summary-number" id="app-summary-completed">—</div>
-          <div class="app-summary-label">concluídos</div>
-        </div>
-        <div class="app-summary-box">
-          <div class="app-summary-number" id="app-summary-value">—</div>
-          <div class="app-summary-label">USDC em acordos ativos</div>
-        </div>
-      </div>
-      <p class="app-summary-note">O valor soma os acordos ativos e não indica fundos protegidos: o escrow on-chain ainda não está integrado.</p>
-    </div>
 
-    <div class="app-card">
       <div class="app-card-head">
-        <h2>Acordos recentes</h2>
-        <a class="app-card-link" href="agreements.html">Ver todos →</a>
+
+        <h2>
+          Solana
+        </h2>
+
+        <span
+          id="app-solana-pill"
+          class="wallet-pill pending"
+        >
+          verificando…
+        </span>
+
       </div>
-      <div id="app-recent-list"><p class="app-empty">Carregando…</p></div>
+
+
+      <p>
+
+        Rede:
+
+        <strong id="app-solana-network">
+          Devnet
+        </strong>
+
+      </p>
+
+
+      <p>
+
+        Programa:
+
+        <a
+          id="app-solana-program"
+          class="solana-program-link"
+          href="#"
+          target="_blank"
+          rel="noopener"
+        >
+          —
+        </a>
+
+      </p>
+
+
+      <p
+        id="app-solana-note"
+        class="solana-note"
+      >
+        Consultando o programa do ProofPay
+        na Solana…
+      </p>
+
     </div>
 
-    <div class="app-card">
-      <h2>Atividade recente</h2>
-      <div id="app-activity-list"><p class="app-empty">Carregando…</p></div>
-    </div>
+
+
+    <!-- ===================================== -->
+    <!-- AÇÕES PENDENTES                       -->
+    <!-- ===================================== -->
 
     <div class="app-card">
-      <h2>Atalhos</h2>
+
+      <h2>
+        O que você precisa fazer agora
+      </h2>
+
+      <div id="app-pending-list">
+
+        <p class="app-empty">
+          Carregando…
+        </p>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ===================================== -->
+    <!-- RESUMO                                -->
+    <!-- ===================================== -->
+
+    <div class="app-card">
+
+      <h2>
+        Resumo
+      </h2>
+
+
+      <div class="app-summary-grid">
+
+
+        <div class="app-summary-box">
+
+          <div
+            class="app-summary-number"
+            id="app-summary-hirer"
+          >
+            —
+          </div>
+
+          <div class="app-summary-label">
+            ativos como contratante
+          </div>
+
+        </div>
+
+
+        <div class="app-summary-box">
+
+          <div
+            class="app-summary-number"
+            id="app-summary-provider"
+          >
+            —
+          </div>
+
+          <div class="app-summary-label">
+            ativos como prestador
+          </div>
+
+        </div>
+
+
+        <div class="app-summary-box">
+
+          <div
+            class="app-summary-number"
+            id="app-summary-completed"
+          >
+            —
+          </div>
+
+          <div class="app-summary-label">
+            concluídos
+          </div>
+
+        </div>
+
+
+        <div class="app-summary-box">
+
+          <div
+            class="app-summary-number"
+            id="app-summary-value"
+          >
+            —
+          </div>
+
+          <div class="app-summary-label">
+            USDC em acordos ativos
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <p class="app-summary-note">
+
+        O valor soma os acordos ativos
+        e não indica fundos protegidos:
+        o escrow on-chain ainda está
+        sendo integrado.
+
+      </p>
+
+    </div>
+
+
+
+    <!-- ===================================== -->
+    <!-- ACORDOS RECENTES                      -->
+    <!-- ===================================== -->
+
+    <div class="app-card">
+
+      <div class="app-card-head">
+
+        <h2>
+          Acordos recentes
+        </h2>
+
+
+        <a
+          class="app-card-link"
+          href="agreements.html"
+        >
+          Ver todos →
+        </a>
+
+      </div>
+
+
+      <div id="app-recent-list">
+
+        <p class="app-empty">
+          Carregando…
+        </p>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ===================================== -->
+    <!-- ATIVIDADE                             -->
+    <!-- ===================================== -->
+
+    <div class="app-card">
+
+      <h2>
+        Atividade recente
+      </h2>
+
+      <div id="app-activity-list">
+
+        <p class="app-empty">
+          Carregando…
+        </p>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ===================================== -->
+    <!-- ATALHOS                               -->
+    <!-- ===================================== -->
+
+    <div class="app-card">
+
+      <h2>
+        Atalhos
+      </h2>
+
+
       <div class="app-shortcuts">
-        <a class="app-shortcut-btn primary" href="agreements.html">+ Criar acordo</a>
-        <a class="app-shortcut-btn" href="explore.html">Explorar serviços</a>
-        <a class="app-shortcut-btn" href="agreements.html">Ver todos os meus acordos</a>
+
+
+        <a
+          class="app-shortcut-btn primary"
+          href="agreements.html"
+        >
+          + Criar acordo
+        </a>
+
+
+        <a
+          class="app-shortcut-btn"
+          href="explore.html"
+        >
+          Explorar serviços
+        </a>
+
+
+        <a
+          class="app-shortcut-btn"
+          href="agreements.html"
+        >
+          Ver todos os meus acordos
+        </a>
+
+
       </div>
+
     </div>
 
-    <button type="button" class="btn btn-ghost" id="app-logout">Sair</button>
+
+
+    <button
+      type="button"
+      class="btn btn-ghost"
+      id="app-logout"
+    >
+      Sair
+    </button>
+
+
   </main>
+
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-client.js"></script>
-<script src="require-auth.js"></script>
-<script src="i18n.js"></script>
-<script src="account-header.js"></script>
-<script src="app.js"></script>
+
+
+<!-- ========================================= -->
+<!-- SCRIPTS                                   -->
+<!-- ========================================= -->
+
+
+<!-- Supabase -->
+
+<script
+  src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+></script>
+
+
+<script
+  src="supabase-client.js"
+></script>
+
+
+<script
+  src="require-auth.js"
+></script>
+
+
+<script
+  src="i18n.js"
+></script>
+
+
+<script
+  src="account-header.js"
+></script>
+
+
+
+<!-- ========================================= -->
+<!-- SOLANA                                    -->
+<!-- ========================================= -->
+
+
+<script
+  src="solana-config.js"
+></script>
+
+
+<script
+  src="solana-readonly.js"
+></script>
+
+
+<script
+  src="solana-dashboard.js"
+></script>
+
+
+
+<!-- Dashboard normal -->
+
+<script
+  src="app.js"
+></script>
+
+
 </body>
 </html>
