@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    ProofPay — Funding Readiness
+  </title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a0c;
+      color: #f5f5f6;
+      font-family: Arial, sans-serif;
+      padding: 40px 20px;
+    }
+
+    main {
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #b5b5ba;
+      font-size: 18px;
+      font-weight: normal;
+    }
+
+    .card {
+      margin-top: 28px;
+      background: #17171b;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    .row {
+      padding: 13px 0;
+      border-bottom: 1px solid #2b2b31;
+    }
+
+    .label {
+      display: block;
+      color: #aaaab2;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .value {
+      line-height: 1.6;
+    }
+
+    .mono {
+      font-family: monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .ok {
+      color: #4ade80;
+      font-weight: bold;
+    }
+
+    .warning {
+      color: #fbbf24;
+      font-weight: bold;
+    }
+
+    .bad {
+      color: #f87171;
+      font-weight: bold;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 20px;
+
+      border: 0;
+      border-radius: 10px;
+
+      background: white;
+      color: #111;
+
+      font-size: 15px;
+      font-weight: bold;
+
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #111116;
+      border: 1px solid #333;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .status.success {
+      color: #9fffb9;
+      border-color: rgba(74,222,128,.35);
+      background: rgba(74,222,128,.08);
+    }
+
+    .status.warning {
+      color: #fde68a;
+      border-color: rgba(251,191,36,.35);
+      background: rgba(251,191,36,.08);
+    }
+
+    .status.error {
+      color: #fecaca;
+      border-color: rgba(248,113,113,.35);
+      background: rgba(248,113,113,.08);
+    }
+
+    .info {
+      margin-top: 20px;
+      color: #aaaab2;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+
+
+<body>
+
+<main>
+
+  <h1>
+    ProofPay
+  </h1>
+
+  <h2>
+    Verificação antes do fundAgreement
+  </h2>
+
+
+  <div class="card">
+
+    <div class="row">
+
+      <span class="label">
+        Rede
+      </span>
+
+      <div class="value">
+        Solana Devnet
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Cliente
+      </span>
+
+      <div
+        id="client-address"
+        class="value mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Mint de teste
+      </span>
+
+      <div
+        id="mint-address"
+        class="value mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Valor necessário para financiar
+      </span>
+
+      <div
+        id="required-amount"
+        class="value"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Token Account (ATA) do cliente
+      </span>
+
+      <div
+        id="client-token-address"
+        class="value mono"
+      >
+        Calculando...
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Token Account existe?
+      </span>
+
+      <div
+        id="client-token-exists"
+        class="value"
+      >
+        Verificando...
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Saldo do token do cliente
+      </span>
+
+      <div
+        id="client-token-balance"
+        class="value"
+      >
+        Verificando...
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Agreement PDA
+      </span>
+
+      <div
+        id="agreement-address"
+        class="value mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Escrow PDA
+      </span>
+
+      <div
+        id="escrow-address"
+        class="value mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Vault ATA
+      </span>
+
+      <div
+        id="vault-address"
+        class="value mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Vault existe?
+      </span>
+
+      <div
+        id="vault-exists"
+        class="value"
+      >
+        Verificando...
+      </div>
+
+    </div>
+
+
+    <div class="row">
+
+      <span class="label">
+        Saldo atual do Vault
+      </span>
+
+      <div
+        id="vault-balance"
+        class="value"
+      >
+        Verificando...
+      </div>
+
+    </div>
+
+
+    <button
+      id="refresh-button"
+      type="button"
+    >
+      Verificar novamente
+    </button>
+
+
+    <div
+      id="status"
+      class="status"
+    >
+      Consultando a Solana Devnet...
+    </div>
+
+
+    <p class="info">
+
+      Esta página apenas consulta contas e saldos
+      na Solana Devnet.
+
+      Nenhuma assinatura é solicitada e nenhuma
+      transação é enviada.
+
+    </p>
+
+  </div>
+
+</main>
+
+
+<script
+  src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"
+></script>
+
+<script src="solana-config.js"></script>
+
+<script src="proofpay-solana.js"></script>
+
+
+<script>
+
+  // --------------------------------------------------------
+  // DADOS DO NOSSO ACORDO DE TESTE
+  // --------------------------------------------------------
+
+  const CLIENT =
+    "GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA";
+
+  const WORKER =
+    "6EgKu4mNChnGEesc2d5jYfLZCrCYRoHxdftRLJLWxZVY";
+
+  const AGREEMENT_ID =
+    "1";
+
+  const MINT =
+    "DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8";
+
+
+  // O acordo foi criado com:
+  //
+  // 1.000000 token
+  //
+  // Como o mint tem 6 casas decimais:
+  //
+  // 1 token = 1.000.000 unidades
+
+  const REQUIRED_RAW_AMOUNT =
+    1000000n;
+
+
+  const TOKEN_PROGRAM_ID =
+    new solanaWeb3.PublicKey(
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    );
+
+
+  const ASSOCIATED_TOKEN_PROGRAM_ID =
+    new solanaWeb3.PublicKey(
+      "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+    );
+
+
+  // --------------------------------------------------------
+  // ELEMENTOS DA PÁGINA
+  // --------------------------------------------------------
+
+  const clientAddressEl =
+    document.getElementById(
+      "client-address"
+    );
+
+  const mintAddressEl =
+    document.getElementById(
+      "mint-address"
+    );
+
+  const requiredAmountEl =
+    document.getElementById(
+      "required-amount"
+    );
+
+  const clientTokenAddressEl =
+    document.getElementById(
+      "client-token-address"
+    );
+
+  const clientTokenExistsEl =
+    document.getElementById(
+      "client-token-exists"
+    );
+
+  const clientTokenBalanceEl =
+    document.getElementById(
+      "client-token-balance"
+    );
+
+  const agreementAddressEl =
+    document.getElementById(
+      "agreement-address"
+    );
+
+  const escrowAddressEl =
+    document.getElementById(
+      "escrow-address"
+    );
+
+  const vaultAddressEl =
+    document.getElementById(
+      "vault-address"
+    );
+
+  const vaultExistsEl =
+    document.getElementById(
+      "vault-exists"
+    );
+
+  const vaultBalanceEl =
+    document.getElementById(
+      "vault-balance"
+    );
+
+  const refreshButton =
+    document.getElementById(
+      "refresh-button"
+    );
+
+  const statusEl =
+    document.getElementById(
+      "status"
+    );
+
+
+  const connection =
+    new solanaWeb3.Connection(
+      window.ppSolanaConfig.rpcUrl,
+      "confirmed"
+    );
+
+
+  // --------------------------------------------------------
+  // CALCULAR ASSOCIATED TOKEN ACCOUNT
+  // --------------------------------------------------------
+
+  function deriveAta(
+    owner,
+    mint
+  ) {
+
+    const [
+      ata
+    ] =
+      solanaWeb3
+        .PublicKey
+        .findProgramAddressSync(
+
+          [
+
+            owner.toBuffer(),
+
+            TOKEN_PROGRAM_ID
+              .toBuffer(),
+
+            mint.toBuffer()
+
+          ],
+
+          ASSOCIATED_TOKEN_PROGRAM_ID
+
+        );
+
+
+    return ata;
+
+  }
+
+
+  // --------------------------------------------------------
+  // MOSTRAR ESTADO
+  // --------------------------------------------------------
+
+  function setStatus(
+    message,
+    type
+  ) {
+
+    statusEl.textContent =
+      message;
+
+
+    statusEl.className =
+      "status";
+
+
+    if (type) {
+
+      statusEl
+        .classList
+        .add(type);
+
+    }
+
+  }
+
+
+  function setIndicator(
+    element,
+    text,
+    type
+  ) {
+
+    element.textContent =
+      text;
+
+
+    element.className =
+      "value";
+
+
+    if (type) {
+
+      element
+        .classList
+        .add(type);
+
+    }
+
+  }
+
+
+  // --------------------------------------------------------
+  // FORMATAR TOKEN
+  // --------------------------------------------------------
+
+  function formatTokenAmount(
+    raw,
+    decimals
+  ) {
+
+    const value =
+      BigInt(raw);
+
+
+    const divisor =
+      10n **
+      BigInt(decimals);
+
+
+    const whole =
+      value /
+      divisor;
+
+
+    const fraction =
+      (
+        value %
+        divisor
+      )
+        .toString()
+        .padStart(
+          decimals,
+          "0"
+        );
+
+
+    return (
+      whole.toString() +
+      "." +
+      fraction
+    );
+
+  }
+
+
+  // --------------------------------------------------------
+  // VERIFICAÇÃO PRINCIPAL
+  // --------------------------------------------------------
+
+  async function checkFundingReadiness() {
+
+    refreshButton.disabled =
+      true;
+
+
+    setStatus(
+      "Consultando a Solana Devnet..."
+    );
+
+
+    try {
+
+      const client =
+        new solanaWeb3.PublicKey(
+          CLIENT
+        );
+
+
+      const mint =
+        new solanaWeb3.PublicKey(
+          MINT
+        );
+
+
+      clientAddressEl.textContent =
+        CLIENT;
+
+
+      mintAddressEl.textContent =
+        MINT;
+
+
+      // ----------------------------------------------------
+      // CONFIRMAR O MINT E DECIMAIS
+      // ----------------------------------------------------
+
+      const mintInfo =
+        await connection
+          .getAccountInfo(
+            mint,
+            "confirmed"
+          );
+
+
+      if (!mintInfo) {
+
+        throw new Error(
+          "Mint de teste não encontrado na Devnet."
+        );
+
+      }
+
+
+      if (
+        !mintInfo.owner.equals(
+          TOKEN_PROGRAM_ID
+        )
+      ) {
+
+        throw new Error(
+          "O mint não pertence ao SPL Token Program esperado."
+        );
+
+      }
+
+
+      const supply =
+        await connection
+          .getTokenSupply(
+            mint,
+            "confirmed"
+          );
+
+
+      const decimals =
+        supply.value.decimals;
+
+
+      requiredAmountEl.textContent =
+        formatTokenAmount(
+          REQUIRED_RAW_AMOUNT,
+          decimals
+        ) +
+        " token";
+
+
+      // ----------------------------------------------------
+      // AGREEMENT + ESCROW
+      // ----------------------------------------------------
+
+      const agreement =
+        window
+          .ppProofPaySolana
+          .deriveAgreementPda({
+
+            client:
+              CLIENT,
+
+            worker:
+              WORKER,
+
+            agreementId:
+              AGREEMENT_ID
+
+          });
+
+
+      const escrow =
+        window
+          .ppProofPaySolana
+          .deriveEscrowPda(
+            agreement.pda
+          );
+
+
+      agreementAddressEl.textContent =
+        agreement.address;
+
+
+      escrowAddressEl.textContent =
+        escrow.address;
+
+
+      // ----------------------------------------------------
+      // TOKEN ACCOUNT DO CLIENTE
+      // ----------------------------------------------------
+
+      const clientAta =
+        deriveAta(
+          client,
+          mint
+        );
+
+
+      clientTokenAddressEl.textContent =
+        clientAta.toString();
+
+
+      const clientAtaInfo =
+        await connection
+          .getAccountInfo(
+            clientAta,
+            "confirmed"
+          );
+
+
+      let clientBalanceRaw =
+        0n;
+
+
+      if (!clientAtaInfo) {
+
+        setIndicator(
+          clientTokenExistsEl,
+          "NÃO",
+          "warning"
+        );
+
+
+        setIndicator(
+          clientTokenBalanceEl,
+          "0 token",
+          "warning"
+        );
+
+      } else {
+
+        setIndicator(
+          clientTokenExistsEl,
+          "SIM",
+          "ok"
+        );
+
+
+        const balance =
+          await connection
+            .getTokenAccountBalance(
+              clientAta,
+              "confirmed"
+            );
+
+
+        clientBalanceRaw =
+          BigInt(
+            balance.value.amount
+          );
+
+
+        setIndicator(
+          clientTokenBalanceEl,
+
+          balance
+            .value
+            .uiAmountString +
+            " token",
+
+          clientBalanceRaw >=
+            REQUIRED_RAW_AMOUNT
+              ? "ok"
+              : "warning"
+
+        );
+
+      }
+
+
+      // ----------------------------------------------------
+      // VAULT ATA
+      // ----------------------------------------------------
+
+      const vault =
+        deriveAta(
+          escrow.pda,
+          mint
+        );
+
+
+      vaultAddressEl.textContent =
+        vault.toString();
+
+
+      const vaultInfo =
+        await connection
+          .getAccountInfo(
+            vault,
+            "confirmed"
+          );
+
+
+      if (!vaultInfo) {
+
+        setIndicator(
+          vaultExistsEl,
+          "NÃO",
+          "bad"
+        );
+
+
+        setIndicator(
+          vaultBalanceEl,
+          "Não disponível",
+          "bad"
+        );
+
+
+        throw new Error(
+          "O Vault não foi encontrado. initializeEscrow pode não ter sido concluído."
+        );
+
+      }
+
+
+      setIndicator(
+        vaultExistsEl,
+        "SIM",
+        "ok"
+      );
+
+
+      const vaultBalance =
+        await connection
+          .getTokenAccountBalance(
+            vault,
+            "confirmed"
+          );
+
+
+      setIndicator(
+        vaultBalanceEl,
+
+        vaultBalance
+          .value
+          .uiAmountString +
+          " token",
+
+        "ok"
+
+      );
+
+
+      // ----------------------------------------------------
+      // RESULTADO
+      // ----------------------------------------------------
+
+      if (
+        !clientAtaInfo
+      ) {
+
+        setStatus(
+          "⚠️ O escrow está pronto, mas a carteira cliente ainda não possui o Associated Token Account deste mint.\n\n" +
+          "Antes de executar fundAgreement, precisamos colocar tokens de teste nessa carteira.",
+          "warning"
+        );
+
+
+        return;
+
+      }
+
+
+      if (
+        clientBalanceRaw <
+        REQUIRED_RAW_AMOUNT
+      ) {
+
+        setStatus(
+          "⚠️ O escrow está pronto, mas o saldo do token do cliente é insuficiente.\n\n" +
+          "Necessário: " +
+          formatTokenAmount(
+            REQUIRED_RAW_AMOUNT,
+            decimals
+          ) +
+          " token\n\n" +
+          "Saldo atual: " +
+          formatTokenAmount(
+            clientBalanceRaw,
+            decimals
+          ) +
+          " token",
+          "warning"
+        );
+
+
+        return;
+
+      }
+
+
+      setStatus(
+        "✅ Carteira pronta para fundAgreement!\n\n" +
+        "O cliente possui saldo suficiente do token de teste e o Vault do escrow existe na Devnet.",
+        "success"
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "[ProofPay] funding readiness:",
+        error
+      );
+
+
+      setStatus(
+        "❌ Erro na verificação:\n\n" +
+        error.message,
+        "error"
+      );
+
+    } finally {
+
+      refreshButton.disabled =
+        false;
+
+    }
+
+  }
+
+
+  refreshButton
+    .addEventListener(
+      "click",
+      checkFundingReadiness
+    );
+
+
+  checkFundingReadiness();
+
+</script>
+
+</body>
+</html>
