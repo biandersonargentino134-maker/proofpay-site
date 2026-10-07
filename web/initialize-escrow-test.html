@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    ProofPay — Initialize Escrow
+  </title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a0c;
+      color: #f5f5f6;
+      font-family: Arial, sans-serif;
+      padding: 40px 20px;
+    }
+
+    main {
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #b5b5ba;
+      font-size: 18px;
+      font-weight: normal;
+    }
+
+    .card {
+      margin-top: 28px;
+      background: #17171b;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #aaaab2;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .mono {
+      font-family: monospace;
+      overflow-wrap: anywhere;
+      line-height: 1.6;
+    }
+
+    .check {
+      padding: 10px 0;
+      border-bottom: 1px solid #29292f;
+      line-height: 1.5;
+    }
+
+    .ok {
+      color: #4ade80;
+    }
+
+    .bad {
+      color: #f87171;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .primary {
+      background: white;
+      color: #111;
+    }
+
+    .secondary {
+      background: #29292f;
+      color: white;
+      border: 1px solid #444;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #111116;
+      border: 1px solid #333;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .success {
+      color: #9fffb9;
+      border-color: rgba(74,222,128,.35);
+      background: rgba(74,222,128,.08);
+    }
+
+    .error {
+      color: #fecaca;
+      border-color: rgba(248,113,113,.35);
+      background: rgba(248,113,113,.08);
+    }
+
+    .warning {
+      color: #fde68a;
+      border-color: rgba(251,191,36,.35);
+      background: rgba(251,191,36,.08);
+    }
+
+    .info {
+      color: #aaaab2;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-top: 20px;
+    }
+
+    a {
+      color: #9ec5ff;
+    }
+  </style>
+</head>
+
+
+<body>
+
+<main>
+
+  <h1>
+    ProofPay
+  </h1>
+
+  <h2>
+    Teste real — initializeEscrow
+  </h2>
+
+
+  <div class="card">
+
+    <div class="field">
+
+      <label>
+        Rede
+      </label>
+
+      <div>
+        Solana Devnet
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Program ID
+      </label>
+
+      <div
+        id="program-id"
+        class="mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Cliente esperado
+      </label>
+
+      <div class="mono">
+        GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Prestador
+      </label>
+
+      <div class="mono">
+        6EgKu4mNChnGEesc2d5jYfLZCrCYRoHxdftRLJLWxZVY
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Agreement ID
+      </label>
+
+      <div>
+        1
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Mint de teste
+      </label>
+
+      <div class="mono">
+        DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8
+      </div>
+
+    </div>
+
+
+    <button
+      id="connect-button"
+      class="secondary"
+      type="button"
+    >
+      Conectar Phantom do cliente
+    </button>
+
+
+    <div
+      id="checks"
+      style="margin-top:22px"
+    >
+
+      <div class="check">
+        Cliente:
+        <span id="check-client">
+          aguardando
+        </span>
+      </div>
+
+      <div class="check">
+        Agreement PDA:
+        <span id="check-agreement">
+          aguardando
+        </span>
+      </div>
+
+      <div class="check">
+        Agreement existe:
+        <span id="check-agreement-exists">
+          aguardando
+        </span>
+      </div>
+
+      <div class="check">
+        Escrow PDA:
+        <span id="check-escrow">
+          aguardando
+        </span>
+      </div>
+
+      <div class="check">
+        Mint:
+        <span id="check-mint">
+          aguardando
+        </span>
+      </div>
+
+      <div class="check">
+        Vault ATA:
+        <span id="check-vault">
+          aguardando
+        </span>
+      </div>
+
+    </div>
+
+
+    <div
+      class="field"
+      style="margin-top:22px"
+    >
+
+      <label>
+        Agreement PDA
+      </label>
+
+      <div
+        id="agreement-address"
+        class="mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Escrow PDA
+      </label>
+
+      <div
+        id="escrow-address"
+        class="mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Vault ATA
+      </label>
+
+      <div
+        id="vault-address"
+        class="mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <button
+      id="initialize-button"
+      class="primary"
+      type="button"
+      disabled
+    >
+      Inicializar escrow na Devnet
+    </button>
+
+
+    <div
+      id="status"
+      class="status"
+    >
+      Conecte a Phantom do cliente para validar as contas.
+    </div>
+
+
+    <p class="info">
+
+      Esta operação cria a infraestrutura do escrow
+      na Solana Devnet.
+
+      Ela pode consumir uma pequena quantidade de SOL
+      Devnet para criar contas.
+
+      Nenhum token do pagamento é depositado nesta etapa.
+
+    </p>
+
+  </div>
+
+</main>
+
+
+<script
+  src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"
+></script>
+
+<script src="solana-config.js"></script>
+
+<script src="proofpay-solana.js"></script>
+
+
+<script>
+
+  const CLIENT =
+    "GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA";
+
+  const WORKER =
+    "6EgKu4mNChnGEesc2d5jYfLZCrCYRoHxdftRLJLWxZVY";
+
+  const AGREEMENT_ID =
+    "1";
+
+  const EXPECTED_AGREEMENT =
+    "yyufzjHKCVC71czNXe8gu3EqbDXLsmD9nrhu5N6GT64";
+
+  const EXPECTED_ESCROW =
+    "5Q7C7jkba7goVH4yqpjroJAYUYsMVXapVE7QthkhuhbW";
+
+  const MINT =
+    "DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8";
+
+
+  const TOKEN_PROGRAM_ID =
+    new solanaWeb3.PublicKey(
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    );
+
+
+  const ASSOCIATED_TOKEN_PROGRAM_ID =
+    new solanaWeb3.PublicKey(
+      "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+    );
+
+
+  const programIdEl =
+    document.getElementById(
+      "program-id"
+    );
+
+
+  const agreementAddressEl =
+    document.getElementById(
+      "agreement-address"
+    );
+
+
+  const escrowAddressEl =
+    document.getElementById(
+      "escrow-address"
+    );
+
+
+  const vaultAddressEl =
+    document.getElementById(
+      "vault-address"
+    );
+
+
+  const connectButton =
+    document.getElementById(
+      "connect-button"
+    );
+
+
+  const initializeButton =
+    document.getElementById(
+      "initialize-button"
+    );
+
+
+  const statusEl =
+    document.getElementById(
+      "status"
+    );
+
+
+  const checkClient =
+    document.getElementById(
+      "check-client"
+    );
+
+
+  const checkAgreement =
+    document.getElementById(
+      "check-agreement"
+    );
+
+
+  const checkAgreementExists =
+    document.getElementById(
+      "check-agreement-exists"
+    );
+
+
+  const checkEscrow =
+    document.getElementById(
+      "check-escrow"
+    );
+
+
+  const checkMint =
+    document.getElementById(
+      "check-mint"
+    );
+
+
+  const checkVault =
+    document.getElementById(
+      "check-vault"
+    );
+
+
+  let provider =
+    null;
+
+
+  let clientPublicKey =
+    null;
+
+
+  let agreementPda =
+    null;
+
+
+  let escrowPda =
+    null;
+
+
+  let vaultAta =
+    null;
+
+
+  const connection =
+    new solanaWeb3.Connection(
+      window.ppSolanaConfig.rpcUrl,
+      "confirmed"
+    );
+
+
+  function setCheck(
+    element,
+    ok,
+    text
+  ) {
+
+    element.textContent =
+      text;
+
+
+    element.className =
+      ok
+        ? "ok"
+        : "bad";
+
+  }
+
+
+  function setStatus(
+    message,
+    type
+  ) {
+
+    statusEl.textContent =
+      message;
+
+
+    statusEl.className =
+      "status";
+
+
+    if (type) {
+
+      statusEl
+        .classList
+        .add(type);
+
+    }
+
+  }
+
+
+  function getPhantomProvider() {
+
+    if (
+      window.phantom &&
+      window.phantom.solana &&
+      window.phantom.solana.isPhantom
+    ) {
+
+      return window.phantom.solana;
+
+    }
+
+
+    if (
+      window.solana &&
+      window.solana.isPhantom
+    ) {
+
+      return window.solana;
+
+    }
+
+
+    return null;
+
+  }
+
+
+  function u64LE(
+    value
+  ) {
+
+    let n =
+      BigInt(value);
+
+
+    const bytes =
+      new Uint8Array(8);
+
+
+    for (
+      let i = 0;
+      i < 8;
+      i++
+    ) {
+
+      bytes[i] =
+        Number(
+          n & 255n
+        );
+
+
+      n >>=
+        8n;
+
+    }
+
+
+    return bytes;
+
+  }
+
+
+  function concatBytes(
+    ...arrays
+  ) {
+
+    const total =
+      arrays.reduce(
+        (
+          sum,
+          item
+        ) =>
+          sum +
+          item.length,
+        0
+      );
+
+
+    const result =
+      new Uint8Array(
+        total
+      );
+
+
+    let offset =
+      0;
+
+
+    for (
+      const item
+      of arrays
+    ) {
+
+      result.set(
+        item,
+        offset
+      );
+
+
+      offset +=
+        item.length;
+
+    }
+
+
+    return result;
+
+  }
+
+
+  async function sha256(
+    bytes
+  ) {
+
+    const hash =
+      await crypto
+        .subtle
+        .digest(
+          "SHA-256",
+          bytes
+        );
+
+
+    return new Uint8Array(
+      hash
+    );
+
+  }
+
+
+  async function anchorDiscriminator(
+    instructionName
+  ) {
+
+    const encoded =
+      new TextEncoder()
+        .encode(
+          "global:" +
+          instructionName
+        );
+
+
+    const hash =
+      await sha256(
+        encoded
+      );
+
+
+    return hash.slice(
+      0,
+      8
+    );
+
+  }
+
+
+  function deriveVaultAta(
+    escrow,
+    mint
+  ) {
+
+    const [
+      address
+    ] =
+      solanaWeb3
+        .PublicKey
+        .findProgramAddressSync(
+
+          [
+
+            escrow.toBuffer(),
+
+            TOKEN_PROGRAM_ID
+              .toBuffer(),
+
+            mint.toBuffer()
+
+          ],
+
+          ASSOCIATED_TOKEN_PROGRAM_ID
+
+        );
+
+
+    return address;
+
+  }
+
+
+  async function validateEverything() {
+
+    initializeButton.disabled =
+      true;
+
+
+    const connected =
+      clientPublicKey
+        .toString();
+
+
+    if (
+      connected !==
+      CLIENT
+    ) {
+
+      setCheck(
+        checkClient,
+        false,
+        "INCORRETO"
+      );
+
+
+      throw new Error(
+        "A Phantom conectada não é a carteira cliente esperada.\n\n" +
+        "Esperada:\n" +
+        CLIENT +
+        "\n\n" +
+        "Conectada:\n" +
+        connected
+      );
+
+    }
+
+
+    setCheck(
+      checkClient,
+      true,
+      "OK"
+    );
+
+
+    const agreement =
+      window
+        .ppProofPaySolana
+        .deriveAgreementPda({
+
+          client:
+            CLIENT,
+
+          worker:
+            WORKER,
+
+          agreementId:
+            AGREEMENT_ID
+
+        });
+
+
+    agreementPda =
+      agreement.pda;
+
+
+    agreementAddressEl.textContent =
+      agreement.address;
+
+
+    if (
+      agreement.address !==
+      EXPECTED_AGREEMENT
+    ) {
+
+      setCheck(
+        checkAgreement,
+        false,
+        "DIFERENTE"
+      );
+
+
+      throw new Error(
+        "Agreement PDA diferente do esperado."
+      );
+
+    }
+
+
+    setCheck(
+      checkAgreement,
+      true,
+      "OK"
+    );
+
+
+    const agreementInfo =
+      await connection
+        .getAccountInfo(
+          agreementPda,
+          "confirmed"
+        );
+
+
+    if (
+      !agreementInfo
+    ) {
+
+      setCheck(
+        checkAgreementExists,
+        false,
+        "NÃO"
+      );
+
+
+      throw new Error(
+        "Agreement PDA não encontrado na Devnet."
+      );
+
+    }
+
+
+    setCheck(
+      checkAgreementExists,
+      true,
+      "SIM"
+    );
+
+
+    const escrow =
+      window
+        .ppProofPaySolana
+        .deriveEscrowPda(
+          agreementPda
+        );
+
+
+    escrowPda =
+      escrow.pda;
+
+
+    escrowAddressEl.textContent =
+      escrow.address;
+
+
+    if (
+      escrow.address !==
+      EXPECTED_ESCROW
+    ) {
+
+      setCheck(
+        checkEscrow,
+        false,
+        "DIFERENTE"
+      );
+
+
+      throw new Error(
+        "Escrow PDA diferente do esperado."
+      );
+
+    }
+
+
+    setCheck(
+      checkEscrow,
+      true,
+      "OK"
+    );
+
+
+    const escrowInfo =
+      await connection
+        .getAccountInfo(
+          escrowPda,
+          "confirmed"
+        );
+
+
+    if (
+      escrowInfo
+    ) {
+
+      setStatus(
+        "⚠️ O Escrow PDA já existe na Devnet.\n\n" +
+        "Não vamos executar initializeEscrow novamente.",
+        "warning"
+      );
+
+
+      throw new Error(
+        "Escrow já inicializado."
+      );
+
+    }
+
+
+    const mintPublicKey =
+      new solanaWeb3.PublicKey(
+        MINT
+      );
+
+
+    const mintInfo =
+      await connection
+        .getAccountInfo(
+          mintPublicKey,
+          "confirmed"
+        );
+
+
+    if (
+      !mintInfo
+    ) {
+
+      setCheck(
+        checkMint,
+        false,
+        "NÃO ENCONTRADO"
+      );
+
+
+      throw new Error(
+        "Mint de teste não encontrado na Devnet."
+      );
+
+    }
+
+
+    if (
+      !mintInfo.owner.equals(
+        TOKEN_PROGRAM_ID
+      )
+    ) {
+
+      setCheck(
+        checkMint,
+        false,
+        "OWNER INVÁLIDO"
+      );
+
+
+      throw new Error(
+        "O mint não pertence ao SPL Token Program esperado."
+      );
+
+    }
+
+
+    setCheck(
+      checkMint,
+      true,
+      "OK"
+    );
+
+
+    vaultAta =
+      deriveVaultAta(
+        escrowPda,
+        mintPublicKey
+      );
+
+
+    vaultAddressEl.textContent =
+      vaultAta
+        .toString();
+
+
+    setCheck(
+      checkVault,
+      true,
+      "CALCULADO"
+    );
+
+
+    initializeButton.disabled =
+      false;
+
+
+    setStatus(
+      "✅ Todas as verificações passaram.\n\n" +
+      "Cliente correto.\n" +
+      "Agreement encontrado.\n" +
+      "Escrow PDA correto.\n" +
+      "Mint válido.\n" +
+      "Vault ATA calculado.\n\n" +
+      "Agora você pode inicializar o escrow."
+    );
+
+  }
+
+
+  async function connectClient() {
+
+    provider =
+      getPhantomProvider();
+
+
+    if (
+      !provider
+    ) {
+
+      setStatus(
+        "Phantom não encontrada.",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    try {
+
+      const response =
+        await provider.connect();
+
+
+      clientPublicKey =
+        response.publicKey;
+
+
+      connectButton.textContent =
+        "Phantom do cliente conectada";
+
+
+      await validateEverything();
+
+
+    } catch (error) {
+
+      console.error(
+        "[ProofPay] validação:",
+        error
+      );
+
+
+      if (
+        error.message !==
+        "Escrow já inicializado."
+      ) {
+
+        setStatus(
+          "❌ Validação interrompida:\n\n" +
+          error.message,
+          "error"
+        );
+
+      }
+
+    }
+
+  }
+
+
+  async function initializeEscrow() {
+
+    initializeButton.disabled =
+      true;
+
+
+    try {
+
+      if (
+        !provider ||
+        !clientPublicKey
+      ) {
+
+        throw new Error(
+          "Conecte a Phantom do cliente primeiro."
+        );
+
+      }
+
+
+      if (
+        clientPublicKey
+          .toString() !==
+        CLIENT
+      ) {
+
+        throw new Error(
+          "A carteira conectada não é o cliente esperado."
+        );
+
+      }
+
+
+      const mintPublicKey =
+        new solanaWeb3.PublicKey(
+          MINT
+        );
+
+
+      const workerPublicKey =
+        new solanaWeb3.PublicKey(
+          WORKER
+        );
+
+
+      const discriminator =
+        await anchorDiscriminator(
+          "initialize_escrow"
+        );
+
+
+      const instructionData =
+        concatBytes(
+
+          discriminator,
+
+          u64LE(
+            AGREEMENT_ID
+          )
+
+        );
+
+
+      const instruction =
+        new solanaWeb3
+          .TransactionInstruction({
+
+            programId:
+              window
+                .ppProofPaySolana
+                .getProgramId(),
+
+            keys: [
+
+              {
+                pubkey:
+                  clientPublicKey,
+
+                isSigner:
+                  true,
+
+                isWritable:
+                  true
+              },
+
+
+              {
+                pubkey:
+                  workerPublicKey,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  false
+              },
+
+
+              {
+                pubkey:
+                  agreementPda,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  false
+              },
+
+
+              {
+                pubkey:
+                  escrowPda,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  true
+              },
+
+
+              {
+                pubkey:
+                  mintPublicKey,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  false
+              },
+
+
+              {
+                pubkey:
+                  vaultAta,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  true
+              },
+
+
+              {
+                pubkey:
+                  TOKEN_PROGRAM_ID,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  false
+              },
+
+
+              {
+                pubkey:
+                  ASSOCIATED_TOKEN_PROGRAM_ID,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  false
+              },
+
+
+              {
+                pubkey:
+                  solanaWeb3
+                    .SystemProgram
+                    .programId,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  false
+              }
+
+            ],
+
+            data:
+              instructionData
+
+          });
+
+
+      const transaction =
+        new solanaWeb3
+          .Transaction()
+          .add(
+            instruction
+          );
+
+
+      const latest =
+        await connection
+          .getLatestBlockhash(
+            "confirmed"
+          );
+
+
+      transaction
+        .recentBlockhash =
+        latest.blockhash;
+
+
+      transaction
+        .feePayer =
+        clientPublicKey;
+
+
+      setStatus(
+        "A Phantom vai pedir sua assinatura.\n\n" +
+        "Esta transação cria o EscrowState e o Vault.\n" +
+        "Nenhum token será depositado ainda."
+      );
+
+
+      const signed =
+        await provider
+          .signTransaction(
+            transaction
+          );
+
+
+      setStatus(
+        "Enviando initializeEscrow para a Solana Devnet..."
+      );
+
+
+      const signature =
+        await connection
+          .sendRawTransaction(
+            signed.serialize(),
+            {
+
+              skipPreflight:
+                false,
+
+              preflightCommitment:
+                "confirmed"
+
+            }
+          );
+
+
+      setStatus(
+        "Transação enviada.\n\n" +
+        "Aguardando confirmação...\n\n" +
+        signature
+      );
+
+
+      await connection
+        .confirmTransaction(
+          {
+
+            signature:
+              signature,
+
+            blockhash:
+              latest.blockhash,
+
+            lastValidBlockHeight:
+              latest.lastValidBlockHeight
+
+          },
+
+          "confirmed"
+        );
+
+
+      const [
+        escrowInfo,
+        vaultInfo
+      ] =
+        await Promise.all([
+
+          connection
+            .getAccountInfo(
+              escrowPda,
+              "confirmed"
+            ),
+
+          connection
+            .getAccountInfo(
+              vaultAta,
+              "confirmed"
+            )
+
+        ]);
+
+
+      if (
+        !escrowInfo
+      ) {
+
+        throw new Error(
+          "Transação confirmada, mas EscrowState não foi encontrado."
+        );
+
+      }
+
+
+      if (
+        !vaultInfo
+      ) {
+
+        throw new Error(
+          "Transação confirmada, mas Vault ATA não foi encontrado."
+        );
+
+      }
+
+
+      const explorerUrl =
+        "https://explorer.solana.com/tx/" +
+        signature +
+        "?cluster=devnet";
+
+
+      statusEl.innerHTML =
+        "✅ Escrow inicializado na Solana Devnet!" +
+
+        "<br><br>" +
+
+        "Escrow PDA:<br>" +
+
+        "<span class='mono'>" +
+        escrowPda.toString() +
+        "</span>" +
+
+        "<br><br>" +
+
+        "Vault ATA:<br>" +
+
+        "<span class='mono'>" +
+        vaultAta.toString() +
+        "</span>" +
+
+        "<br><br>" +
+
+        "Transaction signature:<br>" +
+
+        "<span class='mono'>" +
+        signature +
+        "</span>" +
+
+        "<br><br>" +
+
+        "<a target='_blank' rel='noopener' href='" +
+        explorerUrl +
+        "'>" +
+
+        "Abrir transação no Solana Explorer" +
+
+        "</a>";
+
+
+      statusEl.className =
+        "status success";
+
+
+      console.log(
+        "[ProofPay] Escrow:",
+        escrowPda.toString()
+      );
+
+
+      console.log(
+        "[ProofPay] Vault:",
+        vaultAta.toString()
+      );
+
+
+      console.log(
+        "[ProofPay] Transaction:",
+        signature
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "[ProofPay] initializeEscrow:",
+        error
+      );
+
+
+      let message =
+        error &&
+        error.message
+          ? error.message
+          : String(error);
+
+
+      if (
+        error &&
+        error.logs
+      ) {
+
+        message +=
+          "\n\nLogs:\n" +
+          error.logs.join(
+            "\n"
+          );
+
+      }
+
+
+      setStatus(
+        "❌ Erro ao inicializar escrow:\n\n" +
+        message,
+        "error"
+      );
+
+
+      initializeButton.disabled =
+        false;
+
+    }
+
+  }
+
+
+  programIdEl.textContent =
+    window
+      .ppSolanaConfig
+      .programId;
+
+
+  connectButton
+    .addEventListener(
+      "click",
+      connectClient
+    );
+
+
+  initializeButton
+    .addEventListener(
+      "click",
+      initializeEscrow
+    );
+
+</script>
+
+</body>
+</html>
