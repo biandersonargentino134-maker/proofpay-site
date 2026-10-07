@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    ProofPay — Accept Agreement
+  </title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a0c;
+      color: #f5f5f6;
+      font-family: Arial, sans-serif;
+      padding: 40px 20px;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #b5b5ba;
+      font-size: 18px;
+      font-weight: normal;
+    }
+
+    .card {
+      margin-top: 28px;
+      background: #17171b;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #aaaab2;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      background: #101014;
+      color: white;
+      border: 1px solid #3a3a42;
+      border-radius: 9px;
+      font-size: 14px;
+    }
+
+    .mono {
+      font-family: monospace;
+      overflow-wrap: anywhere;
+      line-height: 1.6;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .primary {
+      background: white;
+      color: #111;
+    }
+
+    .secondary {
+      background: #29292f;
+      color: white;
+      border: 1px solid #444;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #111116;
+      border: 1px solid #333;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .success {
+      color: #9fffb9;
+      border-color: rgba(74,222,128,.35);
+      background: rgba(74,222,128,.08);
+    }
+
+    .error {
+      color: #fecaca;
+      border-color: rgba(248,113,113,.35);
+      background: rgba(248,113,113,.08);
+    }
+
+    .warning {
+      color: #fde68a;
+      border-color: rgba(251,191,36,.35);
+      background: rgba(251,191,36,.08);
+    }
+
+    .info {
+      color: #aaaab2;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    a {
+      color: #9ec5ff;
+    }
+  </style>
+</head>
+
+<body>
+
+<main>
+
+  <h1>
+    ProofPay
+  </h1>
+
+  <h2>
+    Teste real — acceptAgreement
+  </h2>
+
+
+  <div class="card">
+
+    <div class="field">
+
+      <label>
+        Rede
+      </label>
+
+      <div>
+        Solana Devnet
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Program ID
+      </label>
+
+      <div
+        id="program-id"
+        class="mono"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Prestador conectado na Phantom
+      </label>
+
+      <div
+        id="worker-address"
+        class="mono"
+      >
+        Não conectado
+      </div>
+
+    </div>
+
+
+    <button
+      id="connect-button"
+      class="secondary"
+      type="button"
+    >
+      Conectar Phantom do prestador
+    </button>
+
+
+    <div
+      class="field"
+      style="margin-top:22px"
+    >
+
+      <label for="client">
+        Carteira do cliente
+      </label>
+
+      <input
+        id="client"
+        class="mono"
+        type="text"
+        value="GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA"
+      >
+
+    </div>
+
+
+    <div class="field">
+
+      <label for="agreement-id">
+        Agreement ID
+      </label>
+
+      <input
+        id="agreement-id"
+        type="number"
+        min="0"
+        step="1"
+        value="1"
+      >
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Agreement PDA calculado
+      </label>
+
+      <div
+        id="agreement-pda"
+        class="mono"
+      >
+        Será calculado após conectar a Phantom.
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Agreement PDA esperado do nosso teste
+      </label>
+
+      <div class="mono">
+        yyufzjHKCVC71czNXe8gu3EqbDXLsmD9nrhu5N6GT64
+      </div>
+
+    </div>
+
+
+    <button
+      id="accept-button"
+      class="primary"
+      type="button"
+      disabled
+    >
+      Aceitar acordo na Devnet
+    </button>
+
+
+    <div
+      id="status"
+      class="status"
+    >
+      Conecte a Phantom do prestador para começar.
+    </div>
+
+
+    <p class="info">
+
+      Este teste envia uma transação real
+      para a Solana Devnet.
+
+      O prestador assinará a instrução
+      acceptAgreement.
+
+      Nenhum token será transferido nesta etapa.
+
+    </p>
+
+  </div>
+
+</main>
+
+
+<script
+  src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"
+></script>
+
+<script src="solana-config.js"></script>
+
+<script src="proofpay-solana.js"></script>
+
+
+<script>
+
+  const EXPECTED_WORKER =
+    "6EgKu4mNChnGEesc2d5jYfLZCrCYRoHxdftRLJLWxZVY";
+
+
+  const EXPECTED_AGREEMENT =
+    "yyufzjHKCVC71czNXe8gu3EqbDXLsmD9nrhu5N6GT64";
+
+
+  const programIdEl =
+    document.getElementById(
+      "program-id"
+    );
+
+
+  const workerAddressEl =
+    document.getElementById(
+      "worker-address"
+    );
+
+
+  const clientInput =
+    document.getElementById(
+      "client"
+    );
+
+
+  const agreementIdInput =
+    document.getElementById(
+      "agreement-id"
+    );
+
+
+  const agreementPdaEl =
+    document.getElementById(
+      "agreement-pda"
+    );
+
+
+  const connectButton =
+    document.getElementById(
+      "connect-button"
+    );
+
+
+  const acceptButton =
+    document.getElementById(
+      "accept-button"
+    );
+
+
+  const statusEl =
+    document.getElementById(
+      "status"
+    );
+
+
+  let provider =
+    null;
+
+
+  let workerPublicKey =
+    null;
+
+
+  let agreementPda =
+    null;
+
+
+  const connection =
+    new solanaWeb3.Connection(
+      window.ppSolanaConfig.rpcUrl,
+      "confirmed"
+    );
+
+
+  function getPhantomProvider() {
+
+    if (
+      window.phantom &&
+      window.phantom.solana &&
+      window.phantom.solana.isPhantom
+    ) {
+
+      return window.phantom.solana;
+
+    }
+
+
+    if (
+      window.solana &&
+      window.solana.isPhantom
+    ) {
+
+      return window.solana;
+
+    }
+
+
+    return null;
+
+  }
+
+
+  function setStatus(
+    message,
+    type
+  ) {
+
+    statusEl.textContent =
+      message;
+
+
+    statusEl.className =
+      "status";
+
+
+    if (type) {
+
+      statusEl
+        .classList
+        .add(type);
+
+    }
+
+  }
+
+
+  function u64LE(
+    value
+  ) {
+
+    let n =
+      BigInt(value);
+
+
+    if (
+      n < 0n ||
+      n >
+      18446744073709551615n
+    ) {
+
+      throw new Error(
+        "Agreement ID fora do intervalo u64."
+      );
+
+    }
+
+
+    const bytes =
+      new Uint8Array(8);
+
+
+    for (
+      let i = 0;
+      i < 8;
+      i++
+    ) {
+
+      bytes[i] =
+        Number(
+          n & 255n
+        );
+
+
+      n >>=
+        8n;
+
+    }
+
+
+    return bytes;
+
+  }
+
+
+  function concatBytes(
+    ...arrays
+  ) {
+
+    const total =
+      arrays.reduce(
+        (
+          sum,
+          array
+        ) =>
+          sum +
+          array.length,
+        0
+      );
+
+
+    const result =
+      new Uint8Array(
+        total
+      );
+
+
+    let offset =
+      0;
+
+
+    for (
+      const array
+      of arrays
+    ) {
+
+      result.set(
+        array,
+        offset
+      );
+
+
+      offset +=
+        array.length;
+
+    }
+
+
+    return result;
+
+  }
+
+
+  async function sha256(
+    bytes
+  ) {
+
+    const hash =
+      await crypto
+        .subtle
+        .digest(
+          "SHA-256",
+          bytes
+        );
+
+
+    return new Uint8Array(
+      hash
+    );
+
+  }
+
+
+  async function anchorDiscriminator(
+    instructionName
+  ) {
+
+    const encoded =
+      new TextEncoder()
+        .encode(
+          "global:" +
+          instructionName
+        );
+
+
+    const hash =
+      await sha256(
+        encoded
+      );
+
+
+    return hash.slice(
+      0,
+      8
+    );
+
+  }
+
+
+  function calculateAgreementPda() {
+
+    if (
+      !workerPublicKey
+    ) {
+
+      throw new Error(
+        "Prestador não conectado."
+      );
+
+    }
+
+
+    const client =
+      new solanaWeb3.PublicKey(
+        clientInput
+          .value
+          .trim()
+      );
+
+
+    const agreementId =
+      agreementIdInput
+        .value
+        .trim();
+
+
+    const result =
+      window
+        .ppProofPaySolana
+        .deriveAgreementPda({
+
+          client:
+            client
+              .toString(),
+
+          worker:
+            workerPublicKey
+              .toString(),
+
+          agreementId:
+            agreementId
+
+        });
+
+
+    agreementPda =
+      result.pda;
+
+
+    agreementPdaEl.textContent =
+      result.address;
+
+
+    return result;
+
+  }
+
+
+  async function connectWorker() {
+
+    provider =
+      getPhantomProvider();
+
+
+    if (!provider) {
+
+      setStatus(
+        "Phantom não encontrada neste navegador.",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    try {
+
+      const response =
+        await provider.connect();
+
+
+      workerPublicKey =
+        response.publicKey;
+
+
+      const workerAddress =
+        workerPublicKey
+          .toString();
+
+
+      workerAddressEl.textContent =
+        workerAddress;
+
+
+      if (
+        workerAddress !==
+        EXPECTED_WORKER
+      ) {
+
+        acceptButton.disabled =
+          true;
+
+
+        setStatus(
+          "⚠️ A Phantom conectada não é a carteira do prestador usada neste acordo.\n\n" +
+          "Esperada:\n" +
+          EXPECTED_WORKER +
+          "\n\n" +
+          "Conectada:\n" +
+          workerAddress +
+          "\n\n" +
+          "Troque de conta na Phantom antes de continuar.",
+          "warning"
+        );
+
+
+        return;
+
+      }
+
+
+      const result =
+        calculateAgreementPda();
+
+
+      if (
+        result.address !==
+        EXPECTED_AGREEMENT
+      ) {
+
+        acceptButton.disabled =
+          true;
+
+
+        setStatus(
+          "⚠️ O Agreement PDA calculado não corresponde ao acordo criado anteriormente.\n\n" +
+          "Esperado:\n" +
+          EXPECTED_AGREEMENT +
+          "\n\n" +
+          "Calculado:\n" +
+          result.address,
+          "warning"
+        );
+
+
+        return;
+
+      }
+
+
+      const accountInfo =
+        await connection
+          .getAccountInfo(
+            agreementPda,
+            "confirmed"
+          );
+
+
+      if (!accountInfo) {
+
+        acceptButton.disabled =
+          true;
+
+
+        setStatus(
+          "❌ O Agreement PDA não foi encontrado na Devnet.",
+          "error"
+        );
+
+
+        return;
+
+      }
+
+
+      connectButton.textContent =
+        "Phantom do prestador conectada";
+
+
+      acceptButton.disabled =
+        false;
+
+
+      setStatus(
+        "✅ Prestador correto conectado.\n\n" +
+        "Agreement PDA encontrado na Devnet.\n\n" +
+        "Agora você pode aceitar o acordo."
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+
+      setStatus(
+        "Erro ao conectar/verificar Phantom:\n\n" +
+        error.message,
+        "error"
+      );
+
+    }
+
+  }
+
+
+  async function acceptAgreement() {
+
+    acceptButton.disabled =
+      true;
+
+
+    try {
+
+      if (
+        !provider ||
+        !workerPublicKey
+      ) {
+
+        throw new Error(
+          "Conecte a Phantom do prestador primeiro."
+        );
+
+      }
+
+
+      if (
+        workerPublicKey
+          .toString() !==
+        EXPECTED_WORKER
+      ) {
+
+        throw new Error(
+          "A carteira conectada não é o prestador deste acordo."
+        );
+
+      }
+
+
+      const clientPublicKey =
+        new solanaWeb3.PublicKey(
+          clientInput
+            .value
+            .trim()
+        );
+
+
+      const agreementId =
+        BigInt(
+          agreementIdInput.value
+        );
+
+
+      const derived =
+        calculateAgreementPda();
+
+
+      if (
+        derived.address !==
+        EXPECTED_AGREEMENT
+      ) {
+
+        throw new Error(
+          "Agreement PDA diferente do esperado."
+        );
+
+      }
+
+
+      const existing =
+        await connection
+          .getAccountInfo(
+            derived.pda,
+            "confirmed"
+          );
+
+
+      if (!existing) {
+
+        throw new Error(
+          "O Agreement PDA não existe na Devnet."
+        );
+
+      }
+
+
+      const discriminator =
+        await anchorDiscriminator(
+          "accept_agreement"
+        );
+
+
+      const instructionData =
+        concatBytes(
+
+          discriminator,
+
+          u64LE(
+            agreementId
+          )
+
+        );
+
+
+      const instruction =
+        new solanaWeb3
+          .TransactionInstruction({
+
+            programId:
+              window
+                .ppProofPaySolana
+                .getProgramId(),
+
+            keys: [
+
+              {
+                pubkey:
+                  workerPublicKey,
+
+                isSigner:
+                  true,
+
+                isWritable:
+                  true
+              },
+
+
+              {
+                pubkey:
+                  clientPublicKey,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  false
+              },
+
+
+              {
+                pubkey:
+                  derived.pda,
+
+                isSigner:
+                  false,
+
+                isWritable:
+                  true
+              }
+
+            ],
+
+            data:
+              instructionData
+
+          });
+
+
+      const transaction =
+        new solanaWeb3
+          .Transaction()
+          .add(
+            instruction
+          );
+
+
+      const latest =
+        await connection
+          .getLatestBlockhash(
+            "confirmed"
+          );
+
+
+      transaction
+        .recentBlockhash =
+        latest.blockhash;
+
+
+      transaction
+        .feePayer =
+        workerPublicKey;
+
+
+      setStatus(
+        "A Phantom vai pedir a assinatura do prestador.\n\n" +
+        "Nenhum token será transferido."
+      );
+
+
+      const signed =
+        await provider
+          .signTransaction(
+            transaction
+          );
+
+
+      setStatus(
+        "Enviando acceptAgreement para a Solana Devnet..."
+      );
+
+
+      const signature =
+        await connection
+          .sendRawTransaction(
+            signed.serialize(),
+            {
+              skipPreflight:
+                false,
+
+              preflightCommitment:
+                "confirmed"
+            }
+          );
+
+
+      setStatus(
+        "Transação enviada.\n\n" +
+        "Aguardando confirmação...\n\n" +
+        signature
+      );
+
+
+      await connection
+        .confirmTransaction(
+          {
+
+            signature:
+              signature,
+
+            blockhash:
+              latest.blockhash,
+
+            lastValidBlockHeight:
+              latest.lastValidBlockHeight
+
+          },
+
+          "confirmed"
+        );
+
+
+      const explorerUrl =
+        "https://explorer.solana.com/tx/" +
+        signature +
+        "?cluster=devnet";
+
+
+      statusEl.innerHTML =
+        "✅ Acordo aceito pelo prestador na Solana Devnet!" +
+
+        "<br><br>" +
+
+        "Agreement PDA:<br>" +
+
+        "<span class='mono'>" +
+        derived.address +
+        "</span>" +
+
+        "<br><br>" +
+
+        "Transaction signature:<br>" +
+
+        "<span class='mono'>" +
+        signature +
+        "</span>" +
+
+        "<br><br>" +
+
+        "<a target='_blank' rel='noopener' href='" +
+        explorerUrl +
+        "'>" +
+
+        "Abrir transação no Solana Explorer" +
+
+        "</a>";
+
+
+      statusEl.className =
+        "status success";
+
+
+      console.log(
+        "[ProofPay] Agreement aceito:",
+        derived.address
+      );
+
+
+      console.log(
+        "[ProofPay] Transaction:",
+        signature
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "[ProofPay] acceptAgreement:",
+        error
+      );
+
+
+      let message =
+        error &&
+        error.message
+          ? error.message
+          : String(error);
+
+
+      if (
+        error &&
+        error.logs
+      ) {
+
+        message +=
+          "\n\nLogs:\n" +
+          error.logs.join(
+            "\n"
+          );
+
+      }
+
+
+      setStatus(
+        "❌ Erro ao aceitar acordo:\n\n" +
+        message,
+        "error"
+      );
+
+
+    } finally {
+
+      acceptButton.disabled =
+        false;
+
+    }
+
+  }
+
+
+  programIdEl.textContent =
+    window
+      .ppSolanaConfig
+      .programId;
+
+
+  connectButton
+    .addEventListener(
+      "click",
+      connectWorker
+    );
+
+
+  acceptButton
+    .addEventListener(
+      "click",
+      acceptAgreement
+    );
+
+</script>
+
+</body>
+</html>
