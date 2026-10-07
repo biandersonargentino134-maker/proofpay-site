@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    ProofPay — Teste de PDAs
+  </title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #0a0a0c;
+      color: #f5f5f6;
+      font-family: Arial, sans-serif;
+      padding: 40px 20px;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #b5b5ba;
+      font-size: 18px;
+      font-weight: normal;
+    }
+
+    .card {
+      margin-top: 28px;
+      background: #17171b;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #b5b5ba;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 13px 14px;
+
+      background: #101014;
+      color: white;
+
+      border: 1px solid #3a3a42;
+      border-radius: 9px;
+
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: 2px solid #666;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px 18px;
+
+      border: 0;
+      border-radius: 10px;
+
+      font-size: 15px;
+      font-weight: bold;
+
+      cursor: pointer;
+
+      background: white;
+      color: #111;
+    }
+
+    button.secondary {
+      margin-top: 10px;
+      background: #29292f;
+      color: white;
+      border: 1px solid #444;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .result {
+      display: none;
+      margin-top: 26px;
+
+      border-top: 1px solid #333;
+      padding-top: 22px;
+    }
+
+    .result-row {
+      margin-bottom: 20px;
+    }
+
+    .result-label {
+      color: #9c9ca3;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .address {
+      font-family: monospace;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+      line-height: 1.6;
+    }
+
+    .success {
+      margin-top: 20px;
+      padding: 14px;
+
+      background:
+        rgba(74, 222, 128, 0.08);
+
+      border:
+        1px solid rgba(74, 222, 128, 0.25);
+
+      border-radius: 10px;
+
+      color: #b7f7c8;
+    }
+
+    .error {
+      display: none;
+
+      margin-top: 20px;
+      padding: 14px;
+
+      background:
+        rgba(248, 113, 113, 0.08);
+
+      border:
+        1px solid rgba(248, 113, 113, 0.25);
+
+      border-radius: 10px;
+
+      color: #fecaca;
+    }
+
+    .info {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #9c9ca3;
+      line-height: 1.6;
+    }
+
+    .program {
+      font-family: monospace;
+      overflow-wrap: anywhere;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <main>
+
+    <h1>
+      ProofPay
+    </h1>
+
+    <h2>
+      Teste de derivação de PDAs
+    </h2>
+
+
+    <div class="card">
+
+      <div class="field">
+
+        <label>
+          Program ID
+        </label>
+
+        <div
+          id="program-id"
+          class="program"
+        >
+          Carregando...
+        </div>
+
+      </div>
+
+
+      <div class="field">
+
+        <label for="client">
+          Carteira do cliente
+        </label>
+
+        <input
+          id="client"
+          type="text"
+          placeholder="Endereço público Solana do cliente"
+        >
+
+      </div>
+
+
+      <div class="field">
+
+        <label for="worker">
+          Carteira do prestador
+        </label>
+
+        <input
+          id="worker"
+          type="text"
+          placeholder="Endereço público Solana do prestador"
+        >
+
+      </div>
+
+
+      <div class="field">
+
+        <label for="agreement-id">
+          Agreement ID
+        </label>
+
+        <input
+          id="agreement-id"
+          type="number"
+          min="0"
+          step="1"
+          value="1"
+        >
+
+      </div>
+
+
+      <button
+        type="button"
+        id="calculate-button"
+      >
+        Calcular PDAs
+      </button>
+
+
+      <button
+        type="button"
+        id="phantom-button"
+        class="secondary"
+      >
+        Usar minha Phantom como cliente
+      </button>
+
+
+      <div
+        id="error-box"
+        class="error"
+      >
+      </div>
+
+
+      <div
+        id="result"
+        class="result"
+      >
+
+        <div class="result-row">
+
+          <div class="result-label">
+            Agreement PDA
+          </div>
+
+          <div
+            id="agreement-pda"
+            class="address"
+          >
+          </div>
+
+        </div>
+
+
+        <div class="result-row">
+
+          <div class="result-label">
+            Agreement bump
+          </div>
+
+          <div
+            id="agreement-bump"
+          >
+          </div>
+
+        </div>
+
+
+        <div class="result-row">
+
+          <div class="result-label">
+            Escrow PDA
+          </div>
+
+          <div
+            id="escrow-pda"
+            class="address"
+          >
+          </div>
+
+        </div>
+
+
+        <div class="result-row">
+
+          <div class="result-label">
+            Escrow bump
+          </div>
+
+          <div
+            id="escrow-bump"
+          >
+          </div>
+
+        </div>
+
+
+        <div class="success">
+
+          PDAs derivados localmente com sucesso.
+
+          Nenhuma assinatura foi solicitada e
+          nenhuma transação foi enviada para a Solana.
+
+        </div>
+
+      </div>
+
+
+      <p class="info">
+
+        Agreement PDA:
+
+        <br>
+
+        <code>
+          "agreement" + client + worker + agreementId(u64 LE)
+        </code>
+
+        <br><br>
+
+        Escrow PDA:
+
+        <br>
+
+        <code>
+          "escrow" + Agreement PDA
+        </code>
+
+      </p>
+
+    </div>
+
+  </main>
+
+
+  <!--
+    Biblioteca Solana Web3.
+    Estamos fixando a versão para o teste ficar previsível.
+  -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"
+  ></script>
+
+
+  <!-- Configuração do ProofPay -->
+
+  <script
+    src="solana-config.js"
+  ></script>
+
+
+  <!-- Adaptador que acabamos de criar -->
+
+  <script
+    src="proofpay-solana.js"
+  ></script>
+
+
+  <script>
+
+    const programIdEl =
+      document.getElementById(
+        "program-id"
+      );
+
+    const clientInput =
+      document.getElementById(
+        "client"
+      );
+
+    const workerInput =
+      document.getElementById(
+        "worker"
+      );
+
+    const agreementIdInput =
+      document.getElementById(
+        "agreement-id"
+      );
+
+    const calculateButton =
+      document.getElementById(
+        "calculate-button"
+      );
+
+    const phantomButton =
+      document.getElementById(
+        "phantom-button"
+      );
+
+    const resultEl =
+      document.getElementById(
+        "result"
+      );
+
+    const errorBox =
+      document.getElementById(
+        "error-box"
+      );
+
+    const agreementPdaEl =
+      document.getElementById(
+        "agreement-pda"
+      );
+
+    const agreementBumpEl =
+      document.getElementById(
+        "agreement-bump"
+      );
+
+    const escrowPdaEl =
+      document.getElementById(
+        "escrow-pda"
+      );
+
+    const escrowBumpEl =
+      document.getElementById(
+        "escrow-bump"
+      );
+
+
+    function showError(
+      message
+    ) {
+
+      errorBox.textContent =
+        message;
+
+      errorBox.style.display =
+        "block";
+
+      resultEl.style.display =
+        "none";
+
+    }
+
+
+    function clearError() {
+
+      errorBox.style.display =
+        "none";
+
+      errorBox.textContent =
+        "";
+
+    }
+
+
+    function getPhantomProvider() {
+
+      if (
+        window.phantom &&
+        window.phantom.solana &&
+        window.phantom.solana.isPhantom
+      ) {
+
+        return window.phantom.solana;
+
+      }
+
+
+      if (
+        window.solana &&
+        window.solana.isPhantom
+      ) {
+
+        return window.solana;
+
+      }
+
+
+      return null;
+
+    }
+
+
+    function initialize() {
+
+      try {
+
+        if (
+          !window.ppSolanaConfig
+        ) {
+
+          throw new Error(
+            "solana-config.js não foi carregado."
+          );
+
+        }
+
+
+        if (
+          !window.ppProofPaySolana
+        ) {
+
+          throw new Error(
+            "proofpay-solana.js não foi carregado."
+          );
+
+        }
+
+
+        programIdEl.textContent =
+          window
+            .ppSolanaConfig
+            .programId;
+
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+        showError(
+          error.message
+        );
+
+      }
+
+    }
+
+
+    phantomButton.addEventListener(
+      "click",
+      async () => {
+
+        clearError();
+
+
+        const provider =
+          getPhantomProvider();
+
+
+        if (!provider) {
+
+          showError(
+            "Phantom não encontrada neste navegador."
+          );
+
+          return;
+
+        }
+
+
+        phantomButton.disabled =
+          true;
+
+        phantomButton.textContent =
+          "Abrindo Phantom...";
+
+
+        try {
+
+          const response =
+            await provider.connect();
+
+
+          clientInput.value =
+            response
+              .publicKey
+              .toString();
+
+
+          phantomButton.textContent =
+            "Carteira Phantom preenchida";
+
+
+        } catch (error) {
+
+          console.error(
+            error
+          );
+
+
+          phantomButton.disabled =
+            false;
+
+          phantomButton.textContent =
+            "Usar minha Phantom como cliente";
+
+
+          showError(
+            "A conexão com a Phantom foi cancelada."
+          );
+
+        }
+
+      }
+    );
+
+
+    calculateButton.addEventListener(
+      "click",
+      () => {
+
+        clearError();
+
+
+        const client =
+          clientInput
+            .value
+            .trim();
+
+
+        const worker =
+          workerInput
+            .value
+            .trim();
+
+
+        const agreementId =
+          agreementIdInput
+            .value
+            .trim();
+
+
+        if (!client) {
+
+          showError(
+            "Informe a carteira do cliente."
+          );
+
+          return;
+
+        }
+
+
+        if (!worker) {
+
+          showError(
+            "Informe a carteira do prestador."
+          );
+
+          return;
+
+        }
+
+
+        if (
+          agreementId === ""
+        ) {
+
+          showError(
+            "Informe o Agreement ID."
+          );
+
+          return;
+
+        }
+
+
+        try {
+
+          const addresses =
+            window
+              .ppProofPaySolana
+              .deriveAgreementAddresses({
+                client:
+                  client,
+
+                worker:
+                  worker,
+
+                agreementId:
+                  agreementId
+              });
+
+
+          agreementPdaEl.textContent =
+            addresses
+              .agreement
+              .address;
+
+
+          agreementBumpEl.textContent =
+            addresses
+              .agreement
+              .bump;
+
+
+          escrowPdaEl.textContent =
+            addresses
+              .escrow
+              .address;
+
+
+          escrowBumpEl.textContent =
+            addresses
+              .escrow
+              .bump;
+
+
+          resultEl.style.display =
+            "block";
+
+
+          console.log(
+            "[ProofPay] Agreement PDA:",
+            addresses
+              .agreement
+              .address
+          );
+
+
+          console.log(
+            "[ProofPay] Escrow PDA:",
+            addresses
+              .escrow
+              .address
+          );
+
+
+        } catch (error) {
+
+          console.error(
+            "[ProofPay] Erro ao derivar PDA:",
+            error
+          );
+
+
+          showError(
+            "Erro ao calcular PDAs: " +
+            error.message
+          );
+
+        }
+
+      }
+    );
+
+
+    initialize();
+
+  </script>
+
+</body>
+</html>
