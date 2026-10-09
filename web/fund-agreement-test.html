@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProofPay — Fund Agreement</title>
+  <style>
+    body { margin:0; background:#0a0a0c; color:#f5f5f6; font-family:Arial,sans-serif; padding:36px 18px; }
+    main { max-width:760px; margin:auto; }
+    h1 { margin-bottom:5px; }
+    h2 { color:#aaaab2; font-weight:normal; font-size:19px; }
+    .card { background:#17171b; border:1px solid #333; padding:24px; border-radius:14px; margin-top:25px; }
+    .field { margin-bottom:17px; }
+    label { display:block; color:#aaaab2; font-size:13px; margin-bottom:6px; }
+    .mono { font-family:monospace; overflow-wrap:anywhere; line-height:1.5; }
+    button { width:100%; padding:14px; margin-top:10px; border:0; border-radius:9px; font-size:15px; font-weight:bold; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .primary { color:#111; background:#fff; }
+    .secondary { color:#fff; background:#2b2b32; border:1px solid #444; }
+    #status { white-space:pre-wrap; line-height:1.6; border:1px solid #444; background:#101014; border-radius:10px; margin-top:20px; padding:15px; overflow-wrap:anywhere; }
+    #status.ok { border-color:#3a8655; color:#b7f7c8; }
+    #status.bad { border-color:#9e4d4d; color:#fecaca; }
+    .note { color:#aaaab2; font-size:13px; line-height:1.6; }
+    a { color:#a2c7ff; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ProofPay</h1>
+  <h2>Teste real — fundAgreement (Devnet)</h2>
+  <div class="card">
+    <div class="field"><label>Carteira cliente esperada</label><div class="mono">GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA</div></div>
+    <div class="field"><label>Carteira conectada</label><div id="connected" class="mono">Não conectada</div></div>
+    <div class="field"><label>Mint de teste</label><div class="mono">DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8</div></div>
+    <div class="field"><label>Agreement ID</label><div>1</div></div>
+    <div class="field"><label>Valor a depositar</label><div><strong>1.000000 token de teste</strong></div></div>
+    <div class="field"><label>Agreement PDA</label><div id="agreement" class="mono">—</div></div>
+    <div class="field"><label>Vault (cofre)</label><div id="vault" class="mono">—</div></div>
+    <div class="field"><label>Saldo do cliente antes do depósito</label><div id="balance-client">—</div></div>
+    <div class="field"><label>Saldo do Vault antes do depósito</label><div id="balance-vault">—</div></div>
+    <button id="check" class="secondary" type="button">Conectar Phantom e verificar</button>
+    <button id="fund" class="primary" type="button" disabled>Depositar 1 token no escrow</button>
+    <div id="status">Primeiro conecte a Phantom do cliente e verifique as contas.</div>
+    <p class="note">A transferência é real na Solana Devnet. Ela move 1 token SPL de teste para o cofre do acordo. Depois de enviar, não repita sem conferir o resultado no Explorer.</p>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+<script src="solana-config.js"></script>
+<script src="proofpay-solana.js"></script>
+<script>
+  const CLIENT = 'GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA';
+  const WORKER = '6EgKu4mNChnGEesc2d5jYfLZCrCYRoHxdftRLJLWxZVY';
+  const MINT = 'DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8';
+  const AGREEMENT_ID = '1';
+  const AMOUNT = 1000000n; // 1 token com 6 casas decimais
+  const TOKEN_PROGRAM = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  const ATA_PROGRAM = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+  const connection = new solanaWeb3.Connection(window.ppSolanaConfig.rpcUrl, 'confirmed');
+  const el = (id) => document.getElementById(id);
+  const checkButton = el('check');
+  const fundButton = el('fund');
+  let provider = null;
+  let ready = false;
+  let attemptedSend = false;
+  let sending = false;
+
+  function status(message, kind = '') {
+    el('status').className = kind;
+    el('status').textContent = message;
+  }
+
+  function getPhantom() {
+    const p = window.phantom?.solana || window.solana;
+    if (!p || !p.isPhantom) throw new Error('Phantom não encontrada neste navegador.');
+    return p;
+  }
+
+  function deriveAta(owner, mint) {
+    return solanaWeb3.PublicKey.findProgramAddressSync(
+      [owner.toBytes(), TOKEN_PROGRAM.toBytes(), mint.toBytes()], ATA_PROGRAM
+    )[0];
+  }
+
+  function readU64LE(data, offset) {
+    let value = 0n;
+    for (let i = 7; i >= 0; i--) value = (value << 8n) + BigInt(data[offset + i]);
+    return value;
+  }
+
+  async function tokenInfo(address) {
+    const result = await connection.getParsedAccountInfo(address, 'confirmed');
+    const account = result.value;
+    if (!account || !account.owner.equals(TOKEN_PROGRAM) || !account.data?.parsed?.info) {
+      throw new Error('Conta de token inválida ou ausente: ' + address.toString());
+    }
+    return account.data.parsed.info;
+  }
+
+  async function checkEverything() {
+    ready = false;
+    fundButton.disabled = true;
+    if (attemptedSend) throw new Error('Já houve uma tentativa de envio. Confira o Explorer antes de repetir.');
+    provider = getPhantom();
+    const response = await provider.connect();
+    const address = response.publicKey.toString();
+    el('connected').textContent = address;
+    if (address !== CLIENT) throw new Error('Carteira incorreta. Na Phantom, selecione a conta cliente GrAS...TFsA.');
+
+    const client = new solanaWeb3.PublicKey(CLIENT);
+    const mint = new solanaWeb3.PublicKey(MINT);
+    const programId = window.ppProofPaySolana.getProgramId();
+    const agreement = window.ppProofPaySolana.deriveAgreementPda({client: CLIENT, worker: WORKER, agreementId: AGREEMENT_ID});
+    const escrow = window.ppProofPaySolana.deriveEscrowPda(agreement.pda);
+    const clientAta = deriveAta(client, mint);
+    const vault = deriveAta(escrow.pda, mint);
+    el('agreement').textContent = agreement.address;
+    el('vault').textContent = vault.toString();
+
+    const a = await connection.getAccountInfo(agreement.pda, 'confirmed');
+    if (!a || !a.owner.equals(programId) || a.data.length < 130) throw new Error('Agreement inválido ou não encontrado.');
+    if (readU64LE(a.data, 8) !== 1n || readU64LE(a.data, 80) !== AMOUNT) {
+      throw new Error('Agreement ID ou quantidade on-chain é diferente do esperado.');
+    }
+    if (new solanaWeb3.PublicKey(a.data.slice(16, 48)).toString() !== CLIENT ||
+        new solanaWeb3.PublicKey(a.data.slice(48, 80)).toString() !== WORKER) {
+      throw new Error('Cliente ou prestador do Agreement não correspondem ao teste.');
+    }
+    // Enum do IDL: Created=0, Funded=1, Accepted=2, Delivered=3, Completed=4.
+    if (a.data[128] !== 2) throw new Error('O acordo não está no estado Accepted. Estado on-chain: ' + a.data[128] + '. Não envie novamente.');
+
+    const e = await connection.getAccountInfo(escrow.pda, 'confirmed');
+    if (!e || !e.owner.equals(programId) || e.data.length < 105) throw new Error('EscrowState inválido ou ausente.');
+    if (new solanaWeb3.PublicKey(e.data.slice(8, 40)).toString() !== agreement.address ||
+        new solanaWeb3.PublicKey(e.data.slice(40, 72)).toString() !== MINT ||
+        new solanaWeb3.PublicKey(e.data.slice(72, 104)).toString() !== vault.toString()) {
+      throw new Error('EscrowState não corresponde ao acordo, mint ou cofre.');
+    }
+
+    const supply = await connection.getTokenSupply(mint, 'confirmed');
+    if (supply.value.decimals !== 6) throw new Error('O mint não tem 6 decimais.');
+    const source = await tokenInfo(clientAta);
+    const destination = await tokenInfo(vault);
+    if (source.owner !== CLIENT || source.mint !== MINT || destination.owner !== escrow.address || destination.mint !== MINT) {
+      throw new Error('Proprietário ou mint das contas de tokens não corresponde ao esperado.');
+    }
+    const balanceClient = BigInt(source.tokenAmount.amount);
+    const balanceVault = BigInt(destination.tokenAmount.amount);
+    el('balance-client').textContent = source.tokenAmount.uiAmountString + ' token';
+    el('balance-vault').textContent = destination.tokenAmount.uiAmountString + ' token';
+    if (balanceClient < AMOUNT) throw new Error('Saldo de tokens insuficiente.');
+    if (balanceVault !== 0n) throw new Error('O Vault já contém tokens. Vamos verificar antes de financiar.');
+
+    ready = true;
+    fundButton.disabled = sending;
+    return {client, agreement, escrow, clientAta, vault, programId};
+  }
+
+  checkButton.addEventListener('click', async () => {
+    if (sending) return;
+    checkButton.disabled = true;
+    status('Conectando a Phantom e verificando o acordo...');
+    try {
+      await checkEverything();
+      status('✅ Tudo pronto! Agreement está Accepted, cliente tem tokens e o Vault está vazio.\n\nAgora você pode clicar em "Depositar 1 token no escrow".', 'ok');
+    } catch (err) {
+      status('❌ ' + err.message, 'bad');
+    } finally {
+      checkButton.disabled = false;
+    }
+  });
+
+  fundButton.addEventListener('click', async () => {
+    if (!ready || attemptedSend || sending) return;
+    sending = true;
+    fundButton.disabled = true;
+    checkButton.disabled = true;
+    try {
+      const data = await checkEverything(); // verifica de novo imediatamente antes de enviar
+      if (provider.publicKey?.toString() !== CLIENT) throw new Error('A carteira da Phantom mudou.');
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('global:fund_agreement'));
+      const instruction = new solanaWeb3.TransactionInstruction({
+        programId: data.programId,
+        keys: [
+          {pubkey: data.client, isSigner:true, isWritable:true},
+          {pubkey: data.agreement.pda, isSigner:false, isWritable:true},
+          {pubkey: data.escrow.pda, isSigner:false, isWritable:false},
+          {pubkey: new solanaWeb3.PublicKey(MINT), isSigner:false, isWritable:false},
+          {pubkey: data.clientAta, isSigner:false, isWritable:true},
+          {pubkey: data.vault, isSigner:false, isWritable:true},
+          {pubkey: TOKEN_PROGRAM, isSigner:false, isWritable:false}
+        ],
+        data: new Uint8Array(digest).slice(0, 8)
+      });
+      const latest = await connection.getLatestBlockhash('confirmed');
+      const tx = new solanaWeb3.Transaction().add(instruction);
+      tx.feePayer = data.client;
+      tx.recentBlockhash = latest.blockhash;
+      status('Revise a transação na Phantom: ela vai transferir 1 token de teste ao Vault.');
+      const signed = await provider.signTransaction(tx);
+      if (provider.publicKey?.toString() !== CLIENT) throw new Error('Carteira mudou antes do envio.');
+      attemptedSend = true; // bloqueia novas tentativas mesmo se a confirmação demorar
+      status('Enviando a transação para a Devnet...');
+      const signature = await connection.sendRawTransaction(signed.serialize(), {skipPreflight:false, preflightCommitment:'confirmed'});
+      status('Transação enviada: ' + signature + '\nAguardando confirmação...');
+      const confirmed = await connection.confirmTransaction({signature, blockhash:latest.blockhash, lastValidBlockHeight:latest.lastValidBlockHeight}, 'confirmed');
+      if (confirmed.value.err) throw new Error('A transação retornou erro: ' + JSON.stringify(confirmed.value.err));
+      const result = await connection.getAccountInfo(data.agreement.pda, 'confirmed');
+      const vaultBalance = await connection.getTokenAccountBalance(data.vault, 'confirmed');
+      if (!result || result.data[128] !== 1 || BigInt(vaultBalance.value.amount) !== AMOUNT) {
+        throw new Error('Transação confirmada, mas estado ou saldo ainda não bate. Confira no Explorer: ' + signature);
+      }
+      const url = 'https://explorer.solana.com/tx/' + signature + '?cluster=devnet';
+      el('status').className = 'ok';
+      el('status').textContent = '✅ fundAgreement confirmado!\nVault: 1.000000 token de teste\nAgreement: Funded\nTransação: ' + signature + '\n';
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Abrir no Solana Explorer';
+      el('status').appendChild(link);
+    } catch (err) {
+      console.error('[ProofPay] fundAgreement:', err);
+      const logs = Array.isArray(err.logs) ? '\n' + err.logs.join('\n') : '';
+      status('❌ ' + err.message + logs + (attemptedSend ? '\n\nNão reenvie! Confira a transação e me mostre esta mensagem.' : ''), 'bad');
+    } finally {
+      sending = false;
+      fundButton.disabled = true;
+      checkButton.disabled = attemptedSend;
+    }
+  });
+</script>
+</body>
+</html>
