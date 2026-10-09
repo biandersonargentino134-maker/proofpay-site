@@ -45,6 +45,7 @@
     <button id="connect" class="secondary" type="button">Conectar Phantom do prestador e verificar</button>
     <button id="submit" class="primary" type="button" disabled>Registrar entrega na Devnet</button>
     <div id="status" role="status" aria-live="polite">Primeiro conecte a Phantom do prestador e verifique o acordo.</div>
+    <p class="note">Se uma tentativa anterior falhou com <strong>Blockhash not found</strong>, recarregue esta página e verifique primeiro se o estado ainda é <strong>Funded</strong>. Não assine novamente se o estado já for <strong>Delivered</strong>.</p>
     <p class="note">Esta é uma transação real na <strong>Devnet</strong>. A assinatura registra a entrega no programa e muda o Agreement de <strong>Funded</strong> para <strong>Delivered</strong>. O token de teste continua no cofre. Esta página não envia arquivo, não verifica evidência com IA e não libera o pagamento.</p>
   </div>
 </main>
@@ -190,7 +191,8 @@
         ],
         data
       });
-      const latest = await connection.getLatestBlockhash('confirmed');
+      // Um blockhash finalized já foi propagado à rede, reduzindo falhas de RPC defasado.
+      const latest = await connection.getLatestBlockhash('finalized');
       const transaction = new solanaWeb3.Transaction().add(instruction);
       transaction.recentBlockhash = latest.blockhash;
       transaction.feePayer = new solanaWeb3.PublicKey(WORKER);
@@ -199,11 +201,18 @@
       const signed = await provider.signTransaction(transaction);
       if (currentAddress() !== WORKER) throw new Error('A conta Phantom foi alterada durante a assinatura.');
 
+      // A Phantom pode ficar aberta por algum tempo. Verificamos o blockhash
+      // DEPOIS da assinatura para não enviar uma transação já expirada.
+      const validBlockhash = await connection.isBlockhashValid(latest.blockhash, 'confirmed');
+      if (!validBlockhash.value) {
+        throw new Error('A assinatura demorou e o blockhash expirou. Nenhuma transação foi enviada. Recarregue a página, verifique se o acordo continua Funded e só então assine novamente.');
+      }
+
       // Depois da assinatura, evita tentativas duplicadas mesmo se a resposta da rede for incerta.
       attemptedSend = true;
       broadcastStarted = true;
       status('Enviando a transação para a Solana Devnet...');
-      signature = await connection.sendRawTransaction(signed.serialize(), {skipPreflight: false, preflightCommitment: 'confirmed'});
+      signature = await connection.sendRawTransaction(signed.serialize(), {skipPreflight: false, preflightCommitment: 'confirmed', maxRetries: 3});
       status('Transação enviada!\n\nAguardando confirmação...\n' + signature);
       const confirmation = await connection.confirmTransaction({
         signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight
