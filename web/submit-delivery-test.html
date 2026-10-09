@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProofPay — Submit Delivery (Devnet)</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 36px 18px; background: #0a0a0c; color: #f5f5f6; font-family: Arial, sans-serif; }
+    main { max-width: 780px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 34px; }
+    h2 { margin: 0 0 24px; font-size: 18px; font-weight: normal; color: #b5b5ba; }
+    .card { background: #17171b; border: 1px solid #33343b; border-radius: 14px; padding: 24px; }
+    .row { padding: 12px 0; border-bottom: 1px solid #2b2b31; }
+    .label { display: block; color: #aaaab2; font-size: 13px; margin-bottom: 7px; }
+    .value { font-size: 14px; line-height: 1.6; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+    .good { color: #7af5a0; font-weight: 700; }
+    button { display: block; width: 100%; border: 0; border-radius: 10px; margin-top: 12px; padding: 14px 12px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .52; cursor: not-allowed; }
+    .secondary { background: #29292f; color: white; border: 1px solid #444; }
+    .primary { background: white; color: #111; }
+    #status { margin-top: 20px; padding: 15px; border: 1px solid #3a3a42; border-radius: 10px; background: #111116; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 14px; }
+    #status.success { border-color: #286f48; background: #11231a; color: #abf6c3; }
+    #status.error { border-color: #803b3b; background: #28191b; color: #ffb4b4; }
+    #status.warning { border-color: #806b2c; background: #272216; color: #f4d78b; }
+    .note { margin-top: 22px; color: #aaaab2; font-size: 13px; line-height: 1.6; }
+    a { color: #9ec5ff; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ProofPay</h1>
+  <h2>Teste real — submitDelivery</h2>
+  <div class="card">
+    <div class="row"><span class="label">Rede</span><div class="value">Solana Devnet</div></div>
+    <div class="row"><span class="label">Prestador esperado (quem assina)</span><div id="expected-worker" class="value mono"></div></div>
+    <div class="row"><span class="label">Phantom conectada</span><div id="connected-worker" class="value mono">Ainda não conectada</div></div>
+    <div class="row"><span class="label">Cliente do acordo</span><div id="client" class="value mono"></div></div>
+    <div class="row"><span class="label">Agreement ID</span><div class="value">1</div></div>
+    <div class="row"><span class="label">Agreement PDA</span><div id="agreement" class="value mono">—</div></div>
+    <div class="row"><span class="label">Estado do Agreement na blockchain</span><div id="agreement-status" class="value">Não consultado</div></div>
+    <div class="row"><span class="label">Saldo do cofre (vault)</span><div id="vault-balance" class="value">Não consultado</div></div>
+    <button id="connect" class="secondary" type="button">Conectar Phantom do prestador e verificar</button>
+    <button id="submit" class="primary" type="button" disabled>Registrar entrega na Devnet</button>
+    <div id="status" role="status" aria-live="polite">Primeiro conecte a Phantom do prestador e verifique o acordo.</div>
+    <p class="note">Esta é uma transação real na <strong>Devnet</strong>. A assinatura registra a entrega no programa e muda o Agreement de <strong>Funded</strong> para <strong>Delivered</strong>. O token de teste continua no cofre. Esta página não envia arquivo, não verifica evidência com IA e não libera o pagamento.</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+<script src="solana-config.js"></script>
+<script src="proofpay-solana.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const CLIENT = 'GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA';
+  const WORKER = '6EgKu4mNChnGEesc2d5jYfLZCrCYRoHxdftRLJLWxZVY';
+  const AGREEMENT_ID = '1';
+  const AGREEMENT_PDA_EXPECTED = 'yyufzjHKCVC71czNXe8gu3EqbDXLsmD9nrhu5N6GT64';
+  const MINT = 'DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8';
+  const EXPECTED_AMOUNT = 1000000n; // 1 token do mint com 6 decimais
+
+  const el = id => document.getElementById(id);
+  el('expected-worker').textContent = WORKER;
+  el('client').textContent = CLIENT;
+  const connectBtn = el('connect');
+  const submitBtn = el('submit');
+  let provider = null;
+  let ready = false;
+  let sending = false;
+  let attemptedSend = false;
+
+  function status(message, style = '') {
+    el('status').className = style;
+    el('status').textContent = message;
+  }
+
+  function phantom() {
+    const p = (window.phantom && window.phantom.solana) || window.solana;
+    if (!p || !p.isPhantom) throw new Error('Phantom não encontrada neste navegador.');
+    return p;
+  }
+
+  function readU64LE(data, offset) {
+    let n = 0n;
+    for (let i = 7; i >= 0; i--) n = (n << 8n) | BigInt(data[offset + i]);
+    return n;
+  }
+
+  function currentAddress() {
+    return provider && provider.publicKey ? provider.publicKey.toString() : '';
+  }
+
+  function getConnection() {
+    if (!window.solanaWeb3 || !window.ppProofPaySolana || !window.ppSolanaConfig) {
+      throw new Error('Arquivos de configuração Solana não foram carregados.');
+    }
+    return new solanaWeb3.Connection(window.ppSolanaConfig.rpcUrl, 'confirmed');
+  }
+
+  // Verifica contas e estado on-chain; nada é enviado aqui.
+  async function checkEverything(connectWallet = true) {
+    ready = false;
+    submitBtn.disabled = true;
+    if (attemptedSend) throw new Error('Já houve tentativa de envio. Verifique o estado no Explorer antes de tentar novamente.');
+
+    provider = phantom();
+    const connected = connectWallet ? (await provider.connect()).publicKey.toString() : currentAddress();
+    el('connected-worker').textContent = connected || 'Desconectada';
+    if (connected !== WORKER) throw new Error('Carteira incorreta! Troque a Phantom para o prestador 6EgKu...ZVY.');
+
+    const connection = getConnection();
+    const programId = window.ppProofPaySolana.getProgramId();
+    const agreement = window.ppProofPaySolana.deriveAgreementPda({client: CLIENT, worker: WORKER, agreementId: AGREEMENT_ID});
+    if (agreement.address !== AGREEMENT_PDA_EXPECTED) throw new Error('Agreement PDA diferente do acordo usado nos testes.');
+    el('agreement').textContent = agreement.address;
+
+    const a = await connection.getAccountInfo(agreement.pda, 'confirmed');
+    if (!a || !a.owner.equals(programId) || a.data.length < 130) throw new Error('Agreement não encontrado ou inválido.');
+    if (readU64LE(a.data, 8) !== 1n || readU64LE(a.data, 80) !== EXPECTED_AMOUNT) {
+      throw new Error('Agreement ID ou valor on-chain diferente do esperado.');
+    }
+    if (new solanaWeb3.PublicKey(a.data.slice(16, 48)).toString() !== CLIENT ||
+        new solanaWeb3.PublicKey(a.data.slice(48, 80)).toString() !== WORKER) {
+      throw new Error('Cliente ou prestador on-chain diferente deste teste.');
+    }
+    // Ordem do enum na IDL v0.1.0: Created=0, Funded=1, Accepted=2, Delivered=3, Completed=4, Cancelled=5.
+    const names = ['Created', 'Funded', 'Accepted', 'Delivered', 'Completed', 'Cancelled'];
+    const state = a.data[128];
+    el('agreement-status').textContent = names[state] || 'Desconhecido (' + state + ')';
+    if (state !== 1) throw new Error('O acordo não está em Funded. Estado atual: ' + (names[state] || state) + '. Não envie de novo.');
+
+    const escrow = window.ppProofPaySolana.deriveEscrowPda(agreement.pda);
+    const e = await connection.getAccountInfo(escrow.pda, 'confirmed');
+    if (!e || !e.owner.equals(programId) || e.data.length < 105) throw new Error('EscrowState ausente ou inválido.');
+    if (new solanaWeb3.PublicKey(e.data.slice(8, 40)).toString() !== agreement.address ||
+        new solanaWeb3.PublicKey(e.data.slice(40, 72)).toString() !== MINT) {
+      throw new Error('Escrow não corresponde ao Agreement ou ao mint.');
+    }
+    const vault = new solanaWeb3.PublicKey(e.data.slice(72, 104));
+    const vaultResult = await connection.getParsedAccountInfo(vault, 'confirmed');
+    const vaultInfo = vaultResult.value;
+    const parsed = vaultInfo && vaultInfo.data && vaultInfo.data.parsed && vaultInfo.data.parsed.info;
+    if (!parsed || parsed.owner !== escrow.address || parsed.mint !== MINT) {
+      throw new Error('Conta Vault não corresponde ao Escrow.');
+    }
+    const vaultRaw = BigInt(parsed.tokenAmount.amount);
+    el('vault-balance').textContent = parsed.tokenAmount.uiAmountString + ' token de teste';
+    if (vaultRaw !== EXPECTED_AMOUNT) throw new Error('Saldo do Vault diferente de 1 token. Não continue.');
+
+    ready = true;
+    submitBtn.disabled = sending;
+    return {connection, programId, agreement};
+  }
+
+  connectBtn.addEventListener('click', async () => {
+    if (sending || attemptedSend) return;
+    connectBtn.disabled = true;
+    status('Conectando Phantom e lendo o estado on-chain...');
+    try {
+      await checkEverything(true);
+      status('✅ Prestador correto! O acordo está Funded e o cofre tem 1 token.\n\nAgora você pode registrar a entrega.', 'success');
+    } catch (error) {
+      status('❌ ' + error.message, 'error');
+    } finally {
+      connectBtn.disabled = false;
+    }
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    if (!ready || sending || attemptedSend) return;
+    sending = true;
+    submitBtn.disabled = true;
+    connectBtn.disabled = true;
+    let signature = '';
+    let broadcastStarted = false;
+    try {
+      const {connection, programId, agreement} = await checkEverything(false);
+      if (currentAddress() !== WORKER) throw new Error('A conta Phantom mudou. Selecione o prestador novamente.');
+      const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('global:submit_delivery'));
+      const data = new Uint8Array(hash).slice(0, 8); // Discriminator Anchor; submit_delivery não recebe argumentos.
+      const instruction = new solanaWeb3.TransactionInstruction({
+        programId,
+        keys: [
+          {pubkey: new solanaWeb3.PublicKey(WORKER), isSigner: true, isWritable: true},
+          {pubkey: agreement.pda, isSigner: false, isWritable: true}
+        ],
+        data
+      });
+      const latest = await connection.getLatestBlockhash('confirmed');
+      const transaction = new solanaWeb3.Transaction().add(instruction);
+      transaction.recentBlockhash = latest.blockhash;
+      transaction.feePayer = new solanaWeb3.PublicKey(WORKER);
+
+      status('A Phantom vai pedir assinatura do prestador.\n\nEsta ação registra a entrega e NÃO libera o token do cofre.');
+      const signed = await provider.signTransaction(transaction);
+      if (currentAddress() !== WORKER) throw new Error('A conta Phantom foi alterada durante a assinatura.');
+
+      // Depois da assinatura, evita tentativas duplicadas mesmo se a resposta da rede for incerta.
+      attemptedSend = true;
+      broadcastStarted = true;
+      status('Enviando a transação para a Solana Devnet...');
+      signature = await connection.sendRawTransaction(signed.serialize(), {skipPreflight: false, preflightCommitment: 'confirmed'});
+      status('Transação enviada!\n\nAguardando confirmação...\n' + signature);
+      const confirmation = await connection.confirmTransaction({
+        signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight
+      }, 'confirmed');
+      if (confirmation.value.err) throw new Error('A transação foi processada com erro: ' + JSON.stringify(confirmation.value.err));
+      const after = await connection.getAccountInfo(agreement.pda, 'confirmed');
+      if (!after || after.data.length < 130 || after.data[128] !== 3) {
+        throw new Error('A transação foi confirmada, mas ainda não foi possível verificar o status Delivered neste RPC. Verifique no Explorer.');
+      }
+      const url = 'https://explorer.solana.com/tx/' + encodeURIComponent(signature) + '?cluster=devnet';
+      el('agreement-status').textContent = 'Delivered';
+      el('status').className = 'success';
+      el('status').textContent = '✅ Entrega registrada na Solana Devnet!\n\nAgreement: ' + agreement.address + '\nEstado: Delivered\nTransação: ' + signature + '\n\nO token continua bloqueado no escrow.';
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = '\n\nAbrir transação no Solana Explorer';
+      el('status').appendChild(link);
+    } catch (error) {
+      console.error('[ProofPay] submitDelivery:', error);
+      const advice = broadcastStarted ? '\n\nNão tente novamente. Confira o estado do Agreement ou a transação no Explorer antes de agir.' : '';
+      status('❌ ' + (error.message || String(error)) + (signature ? '\n\nTransação: ' + signature : '') + advice, 'error');
+    } finally {
+      sending = false;
+      submitBtn.disabled = true;
+      connectBtn.disabled = attemptedSend;
+    }
+  });
+})();
+</script>
+</body>
+</html>
