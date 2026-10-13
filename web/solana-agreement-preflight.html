@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProofPay — Preparação do novo acordo Solana</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 16px;background:#0a0a0c;color:#f5f5f6;font:15px/1.5 Arial,sans-serif}
+  main{max-width:800px;margin:auto}
+  h1{margin:0 0 6px;font-size:32px}
+  h2{font-size:16px;color:#bcbcc5;font-weight:normal;margin:0 0 22px}
+  .card{background:#17171b;border:1px solid #33343b;border-radius:14px;padding:24px}
+  .row{padding:12px 0;border-bottom:1px solid #2b2b30}
+  .row:last-child{border-bottom:0}
+  .label{display:block;color:#a8a8b2;font-size:12px;margin-bottom:6px}
+  .value{font-size:14px;overflow-wrap:anywhere}
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px}
+  .good{color:#4ade80;font-weight:700}
+  .warn{color:#fbbf24;font-weight:700}
+  .error{color:#f87171;font-weight:700}
+  .note{color:#a9a9b2;font-size:13px;line-height:1.6;margin-top:17px}
+  button{display:block;width:100%;padding:13px;margin-top:18px;border:0;border-radius:9px;background:white;color:#111;font:700 15px Arial;cursor:pointer}
+  button:disabled{opacity:.55;cursor:default}
+  #status{white-space:pre-wrap;overflow-wrap:anywhere;background:#101014;border:1px solid #40404a;border-radius:10px;padding:14px;margin-top:18px;font-size:14px}
+  #status.success{border-color:#286f48;background:#11231a;color:#b5f6c7}
+  #status.warning{border-color:#826b31;background:#262116;color:#ffe29e}
+  #status.error{border-color:#823b3b;background:#28191b;color:#ffb4b4}
+  a{color:#a8caff}
+</style>
+</head>
+<body>
+<main>
+<h1>ProofPay</h1>
+<h2>Etapa de diagnóstico — vínculo entre o acordo do Supabase e a Solana Devnet</h2>
+<div class="card">
+  <div class="row"><span class="label">Rede / token</span><div class="value">Solana Devnet · token SPL de teste (não é USDC real)</div></div>
+  <div class="row"><span class="label">ID do acordo no Supabase</span><div class="value mono" id="supabase-id">—</div></div>
+  <div class="row"><span class="label">Título</span><div class="value" id="title">—</div></div>
+  <div class="row"><span class="label">Situação no Supabase</span><div class="value" id="db-status">—</div></div>
+  <div class="row"><span class="label">Valor registrado no Supabase / equivalente apenas para o teste</span><div class="value" id="amount">—</div></div>
+  <div class="row"><span class="label">Critérios de aceite do acordo</span><div class="value" id="criteria-count">—</div></div>
+  <div class="row"><span class="label">Conta contratante (Supabase)</span><div class="value" id="client-profile">—</div></div>
+  <div class="row"><span class="label">Conta prestador (Supabase)</span><div class="value" id="worker-profile">—</div></div>
+  <div class="row"><span class="label">Carteira do contratante prevista para o teste</span><div class="value mono" id="client-address"></div></div>
+  <div class="row"><span class="label">Carteira do prestador prevista para o teste</span><div class="value mono" id="worker-address"></div></div>
+  <div class="row"><span class="label">Novo Agreement ID na Solana (derivado do UUID do Supabase)</span><div class="value mono" id="chain-id">—</div></div>
+  <div class="row"><span class="label">Novo Agreement PDA na Devnet</span><div class="value mono" id="pda">—</div></div>
+  <div class="row"><span class="label">Situação desse PDA na blockchain</span><div class="value" id="chain-status">—</div></div>
+  <div class="row"><span class="label">SHA-256 dos termos do acordo (referência para uso posterior)</span><div class="value mono" id="terms-hash">—</div></div>
+  <button id="check" type="button">Verificar novamente (somente leitura)</button>
+  <div id="status" role="status" aria-live="polite">Aguardando verificação...</div>
+  <p class="note">
+    Esta página é uma preparação técnica: consulta o Supabase e a Solana, mas não cria acordos,
+    não conecta Phantom, não pede assinaturas e não transfere tokens.
+    O endereço e o hash calculados não ficam vinculados automaticamente ao banco de dados:
+    será necessário implementar esse registro em uma etapa posterior.
+  </p>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="require-auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+<script src="solana-config.js"></script>
+<script src="proofpay-solana.js"></script>
+<script>
+(() => {
+ 'use strict';
+ const AGREEMENT_UUID = '07068f9e-62c9-44d6-b8a8-7d40463d3951';
+ const CLIENT = 'GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA';
+ const WORKER = 'HQGXhgY1Vm6nwgZsSHWBM73YJKo3etZpZzbU7hoiV82c';
+ const MINT = 'DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8';
+ const RAW_AMOUNT = '1000000'; // 1 token de teste, 6 decimais
+ const $ = id => document.getElementById(id);
+ const btn = $('check');
+ const render = (id, value, cls = '') => { const el=$(id); el.textContent=String(value); el.className='value'+(cls?' '+cls:'')+(el.classList.contains('mono')?' mono':''); };
+ function setStatus(message, type=''){$('status').className=type;$('status').textContent=message;}
+ function hex(bytes){return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}
+ async function digest(input){return new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(input)));}
+ function u64FromFirst8(hash){let n=0n;for(let i=7;i>=0;i--)n=(n<<8n)|BigInt(hash[i]);return n.toString();}
+ $('client-address').textContent=CLIENT;
+ $('worker-address').textContent=WORKER;
+ $('supabase-id').textContent=AGREEMENT_UUID;
+
+ async function check(){
+   btn.disabled=true;
+   setStatus('Consultando o acordo e as contas...');
+   try{
+     if(!window.ppSupabase || !window.solanaWeb3 || !window.ppProofPaySolana || !window.ppSolanaConfig)
+       throw new Error('As bibliotecas do Supabase ou Solana não carregaram.');
+     if(window.ppSolanaConfig.network!=='devnet')throw new Error('A página precisa estar na Devnet.');
+     const {data:sd,error:se}=await window.ppSupabase.auth.getSession();
+     if(se || !sd?.session)throw new Error('Você precisa entrar no ProofPay com Google.');
+     const session=sd.session;
+     const {data:a,error:ae}=await window.ppSupabase.from('agreements')
+       .select('id,title,description,amount_usdc,status,criteria,hirer_id,provider_id')
+       .eq('id',AGREEMENT_UUID).single();
+     if(ae || !a)throw new Error('Não foi possível consultar este acordo no Supabase. Confira o ID e se está conectado com a conta do contratante.');
+     render('title',a.title);
+     render('db-status',a.status,a.status==='awaiting_funding'?'good':'warn');
+     render('amount',`${a.amount_usdc} USDC no formulário → ${RAW_AMOUNT} unidades brutas (1 token SPL fictício)`);
+     const criteria=Array.isArray(a.criteria)?a.criteria:null;
+     render('criteria-count',criteria ? `${criteria.length} critério(s)` : 'Formato de critérios inesperado');
+     if(a.hirer_id!==session.user.id)throw new Error('Entre com a conta Google do contratante para preparar este teste.');
+     if(a.status!=='awaiting_funding'||!a.provider_id||a.provider_id===a.hirer_id)
+       throw new Error('O acordo precisa estar Aguardando financiamento e possuir um prestador diferente do contratante.');
+     if(Number(a.amount_usdc)!==1 || !criteria || criteria.length===0)
+       throw new Error('O acordo não corresponde ao teste de 1 token com critérios de aceite.');
+
+     // Confere os perfis conforme as permissões reais do Supabase (RLS).
+     const {data:profiles,error:pe}=await window.ppSupabase.from('profiles')
+       .select('id,wallet_address,wallet_verified')
+       .in('id',[a.hirer_id,a.provider_id]);
+     if(pe)throw new Error('Erro ao conferir perfis no Supabase: '+pe.message);
+     const clientProfile=(profiles||[]).find(p=>p.id===a.hirer_id);
+     const workerProfile=(profiles||[]).find(p=>p.id===a.provider_id);
+     const clientVerified=clientProfile?.wallet_verified===true && clientProfile.wallet_address===CLIENT;
+     if(!clientVerified)throw new Error('A carteira verificada no perfil do contratante não corresponde a GrAS...TFsA.');
+     render('client-profile','Carteira GrAS...TFsA verificada no Supabase','good');
+     let workerVisible=false;
+     if(workerProfile){
+       workerVisible=true;
+       if(workerProfile.wallet_verified!==true || workerProfile.wallet_address!==WORKER)
+         throw new Error('O perfil do prestador não corresponde à carteira HQGX...V82c verificada.');
+       render('worker-profile','Carteira HQGX...V82c verificada no Supabase','good');
+     }else{
+       render('worker-profile','Perfil do prestador não visível nesta sessão (possível regra RLS). Confirmar pelo login dele.','warn');
+     }
+
+     // Determinístico: o mesmo UUID gera sempre o mesmo u64, sem usar o acordo antigo ID=1.
+     const agreementId=u64FromFirst8(await digest('proofpay:supabase:agreement-id:v1:'+a.id));
+     if(agreementId==='0'||agreementId==='1')throw new Error('ID gerado não pode ser 0 ou 1 para este teste.');
+     render('chain-id',agreementId);
+     const agreement=window.ppProofPaySolana.deriveAgreementPda({client:CLIENT,worker:WORKER,agreementId});
+     render('pda',agreement.address);
+     const canonical=JSON.stringify({version:1,source:'proofpay-supabase',supabaseAgreementId:a.id,
+       title:a.title,description:a.description,criteria:criteria,clientWallet:CLIENT,workerWallet:WORKER,
+       mint:MINT,amountRaw:RAW_AMOUNT});
+     render('terms-hash',hex(await digest(canonical)));
+
+     const connection=new solanaWeb3.Connection(window.ppSolanaConfig.rpcUrl,'confirmed');
+     const p=new solanaWeb3.PublicKey(window.ppSolanaConfig.programId);
+     const info=await connection.getAccountInfo(p,'confirmed');
+     if(!info || !info.executable)throw new Error('O programa ProofPay não está disponível na Devnet.');
+     const mint=new solanaWeb3.PublicKey(MINT);
+     const supply=await connection.getTokenSupply(mint,'confirmed');
+     if(supply.value.decimals!==6)throw new Error('Mint SPL de teste com decimais diferentes de 6.');
+     const existing=await connection.getAccountInfo(agreement.pda,'confirmed');
+     if(existing){
+       render('chain-status','O Agreement PDA já existe. Não criar novamente.','warn');
+       setStatus('⚠️ O novo endereço de acordo já existe na blockchain. Pare aqui e confira antes de continuar.','warning');
+     }else{
+       render('chain-status','Ainda não existe — nenhuma transação enviada','good');
+       setStatus('✅ Diagnóstico realizado. Acordo do Supabase localizado, contratante verificado e novo PDA livre.\n'+
+         (workerVisible?'O perfil do prestador também foi validado no Supabase.':'⚠️ O perfil do prestador não está visível nesta sessão; precisaremos confirmar esse vínculo por um caminho autorizado.')+ '\n\n'+
+         'Nenhum acordo foi criado na Solana e nenhum token foi movimentado.',workerVisible?'success':'warning');
+     }
+   }catch(e){console.error('[ProofPay] Pré-verificação do acordo:',e);setStatus('❌ '+(e.message||String(e)),'error');}
+   finally{btn.disabled=false;}
+ }
+ btn.addEventListener('click',check);
+ check();
+})();
+</script>
+</body>
+</html>

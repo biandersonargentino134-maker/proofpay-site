@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProofPay — Release Payment (Devnet)</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 36px 18px; background: #0a0a0c; color: #f5f5f6; font-family: Arial, sans-serif; }
+    main { max-width: 790px; margin: auto; }
+    h1 { font-size: 34px; margin: 0 0 8px; }
+    h2 { font-size: 18px; font-weight: normal; color: #b5b5ba; margin: 0 0 25px; }
+    .card { background: #17171b; border: 1px solid #33343b; border-radius: 14px; padding: 24px; }
+    .row { border-bottom: 1px solid #29292f; padding: 12px 0; }
+    .label { display: block; color: #a9a9b3; font-size: 13px; margin-bottom: 6px; }
+    .value { font-size: 14px; line-height: 1.6; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+    .ok { color: #74ef9d; font-weight: 700; }
+    .warn { color: #fbc15a; font-weight: 700; }
+    button { display: block; width: 100%; border: none; border-radius: 10px; padding: 14px; margin-top: 12px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    button:disabled { opacity: .48; cursor: not-allowed; }
+    .secondary { background: #2b2b32; color: white; border: 1px solid #444; }
+    .primary { background: white; color: #111; }
+    #status { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #444; border-radius: 10px; margin-top: 20px; padding: 15px; background: #101014; font-size: 14px; line-height: 1.65; }
+    #status.success { border-color: #286f48; color: #b5f6c7; background: #11231a; }
+    #status.error { border-color: #803b3b; color: #ffb4b4; background: #28191b; }
+    #status.warning { border-color: #806b2c; color: #ffe29e; background: #272216; }
+    .note { color: #aaaab2; margin-top: 22px; font-size: 13px; line-height: 1.65; }
+    a { color: #a8caff; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ProofPay</h1>
+  <h2>Último teste do ciclo — releasePayment</h2>
+  <div class="card">
+    <div class="row"><span class="label">Rede</span><div class="value">Solana Devnet</div></div>
+    <div class="row"><span class="label">Cliente esperado (quem assina)</span><div id="expected-client" class="value mono"></div></div>
+    <div class="row"><span class="label">Phantom conectada</span><div id="connected-client" class="value mono">Ainda não conectada</div></div>
+    <div class="row"><span class="label">Prestador (quem recebe 1 token)</span><div id="worker" class="value mono"></div></div>
+    <div class="row"><span class="label">Mint SPL de teste</span><div id="mint" class="value mono"></div></div>
+    <div class="row"><span class="label">Agreement ID</span><div class="value">1</div></div>
+    <div class="row"><span class="label">Agreement PDA</span><div id="agreement" class="value mono">—</div></div>
+    <div class="row"><span class="label">Estado do acordo na blockchain</span><div id="agreement-status" class="value">Não consultado</div></div>
+    <div class="row"><span class="label">Escrow PDA</span><div id="escrow" class="value mono">—</div></div>
+    <div class="row"><span class="label">Vault (cofre) ATA</span><div id="vault" class="value mono">—</div></div>
+    <div class="row"><span class="label">Saldo do Vault antes do pagamento</span><div id="vault-balance" class="value">Não consultado</div></div>
+    <div class="row"><span class="label">ATA do prestador</span><div id="worker-ata" class="value mono">—</div></div>
+    <div class="row"><span class="label">Saldo inicial do prestador</span><div id="worker-balance" class="value">Não consultado</div></div>
+    <button id="check" type="button" class="secondary">Conectar Phantom do cliente e verificar</button>
+    <button id="release" type="button" class="primary" disabled>Autorizar liberação de 1 token na Devnet</button>
+    <div id="status" role="status" aria-live="polite">Primeiro conecte a Phantom do cliente para verificar as contas.</div>
+    <p class="note">
+      <strong>Atenção:</strong> este botão envia uma transação real à <strong>Solana Devnet</strong>. O cliente
+      autorizará a transferência de <strong>1 token SPL de teste</strong> do Vault ao prestador e o acordo
+      deverá passar de <strong>Delivered</strong> para <strong>Completed</strong>. Não são SOL nem USDC reais.
+      Esta página é um teste técnico isolado: ela não executa a verificação de evidências com IA ou aprovação via Supabase.
+      Não repita a liberação se a confirmação demorar ou apresentar erro; confira primeiro o estado on-chain.
+    </p>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+<script src="solana-config.js"></script>
+<script src="proofpay-solana.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  // Estes valores pertencem SOMENTE ao acordo de teste (ID 1) na Devnet.
+  const CLIENT = 'GrASds6JDpgSU8StgKeE4cd3BrJTkpMF9BaWaThkTFsA';
+  const WORKER = '6EgKu4mNChnGEesc2d5jYfLZCrCYRoHxdftRLJLWxZVY';
+  const MINT = 'DifqmKQDHFTdLVEKFz7CkmteKjDMHHDiSzuK7X7aprJ8';
+  const AGREEMENT_ID = '1';
+  const AGREEMENT_PDA_EXPECTED = 'yyufzjHKCVC71czNXe8gu3EqbDXLsmD9nrhu5N6GT64';
+  const ESCROW_PDA_EXPECTED = '5Q7C7jkba7goVH4yqpjroJAYUYsMVXapVE7QthkhuhbW';
+  const EXPECTED_VAULT_AMOUNT = 1000000n;
+  const TOKEN_PROGRAM = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  const ATA_PROGRAM = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+  const STATUS_NAMES = ['Created', 'Funded', 'Accepted', 'Delivered', 'Completed', 'Cancelled'];
+
+  const el = id => document.getElementById(id);
+  const checkBtn = el('check');
+  const releaseBtn = el('release');
+  const statusEl = el('status');
+  el('expected-client').textContent = CLIENT;
+  el('worker').textContent = WORKER;
+  el('mint').textContent = MINT;
+
+  let provider = null;
+  let ready = false;
+  let sending = false;
+  let attemptedBroadcast = false;
+  let beforeWorkerRaw = null;
+  let transactionSignature = '';
+
+  function status(message, kind = '') {
+    statusEl.className = kind;
+    statusEl.textContent = message;
+  }
+  function show(id, value, kind = '') {
+    el(id).className = 'value' + (kind ? ' ' + kind : '');
+    el(id).textContent = value;
+  }
+  function phantom() {
+    const p = (window.phantom && window.phantom.solana) || window.solana;
+    if (!p || !p.isPhantom) throw new Error('Extensão Phantom não encontrada neste navegador.');
+    return p;
+  }
+  function walletAddress() {
+    return provider && provider.publicKey ? provider.publicKey.toString() : '';
+  }
+  function getConnection() {
+    if (!window.solanaWeb3 || !window.ppProofPaySolana || !window.ppSolanaConfig) {
+      throw new Error('Bibliotecas da Solana não carregaram. Atualize a página.');
+    }
+    if (window.ppSolanaConfig.network !== 'devnet') throw new Error('Esta página só funciona na Devnet.');
+    return new solanaWeb3.Connection(window.ppSolanaConfig.rpcUrl, 'confirmed');
+  }
+  function readU64LE(bytes, offset) {
+    let result = 0n;
+    for (let i = 7; i >= 0; i--) result = (result << 8n) | BigInt(bytes[offset + i]);
+    return result;
+  }
+  function deriveAta(owner, mint) {
+    return solanaWeb3.PublicKey.findProgramAddressSync(
+      [owner.toBytes(), TOKEN_PROGRAM.toBytes(), mint.toBytes()], ATA_PROGRAM
+    )[0];
+  }
+  async function tokenAccount(connection, address, expectedOwner, expectedMint) {
+    const result = await connection.getParsedAccountInfo(address, 'confirmed');
+    const account = result.value;
+    if (!account || !account.owner.equals(TOKEN_PROGRAM) || !account.data?.parsed?.info) {
+      throw new Error('Conta SPL inválida ou inexistente: ' + address.toString());
+    }
+    const info = account.data.parsed.info;
+    if (info.owner !== expectedOwner || info.mint !== expectedMint) {
+      throw new Error('Proprietário ou mint da conta SPL inesperados: ' + address.toString());
+    }
+    return info;
+  }
+  function appendExplorerLink(signature) {
+    const url = 'https://explorer.solana.com/tx/' + encodeURIComponent(signature) + '?cluster=devnet';
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Abrir transação no Solana Explorer';
+    statusEl.appendChild(document.createTextNode('\n\n'));
+    statusEl.appendChild(link);
+  }
+  async function checkEverything(connectWallet = true) {
+    ready = false;
+    releaseBtn.disabled = true;
+    if (attemptedBroadcast) throw new Error('Uma tentativa de transmissão já ocorreu nesta página. Não repita sem consultar a blockchain.');
+    provider = phantom();
+    const connected = connectWallet ? (await provider.connect()).publicKey.toString() : walletAddress();
+    show('connected-client', connected || 'Desconectada');
+    if (connected !== CLIENT) throw new Error('Carteira incorreta! Na Phantom selecione a conta cliente GrAS...TFsA.');
+
+    const connection = getConnection();
+    const programId = window.ppProofPaySolana.getProgramId();
+    const mint = new solanaWeb3.PublicKey(MINT);
+    const worker = new solanaWeb3.PublicKey(WORKER);
+    const agreement = window.ppProofPaySolana.deriveAgreementPda({client:CLIENT, worker:WORKER, agreementId:AGREEMENT_ID});
+    if (agreement.address !== AGREEMENT_PDA_EXPECTED) throw new Error('Agreement PDA diferente do esperado.');
+    show('agreement', agreement.address);
+    const a = await connection.getAccountInfo(agreement.pda, 'confirmed');
+    if (!a || !a.owner.equals(programId) || a.data.length < 130) throw new Error('Agreement ausente, corrompido ou de outro programa.');
+    if (readU64LE(a.data, 8) !== 1n || readU64LE(a.data, 80) !== EXPECTED_VAULT_AMOUNT) {
+      throw new Error('ID ou valor do acordo on-chain são diferentes dos esperados.');
+    }
+    if (new solanaWeb3.PublicKey(a.data.slice(16,48)).toString() !== CLIENT ||
+        new solanaWeb3.PublicKey(a.data.slice(48,80)).toString() !== WORKER) {
+      throw new Error('Cliente ou prestador on-chain são diferentes do teste.');
+    }
+    const state = a.data[128];
+    show('agreement-status', STATUS_NAMES[state] || 'Desconhecido (' + state + ')', state === 3 ? 'ok' : 'warn');
+    if (state !== 3) {
+      throw new Error('Não pode liberar o pagamento: o acordo não está Delivered. Estado: ' + (STATUS_NAMES[state] || state) + '.');
+    }
+
+    const escrow = window.ppProofPaySolana.deriveEscrowPda(agreement.pda);
+    if (escrow.address !== ESCROW_PDA_EXPECTED) throw new Error('Escrow PDA não corresponde ao teste.');
+    show('escrow', escrow.address);
+    const e = await connection.getAccountInfo(escrow.pda, 'confirmed');
+    if (!e || !e.owner.equals(programId) || e.data.length < 105) throw new Error('EscrowState inválido ou não encontrado.');
+    if (new solanaWeb3.PublicKey(e.data.slice(8,40)).toString() !== agreement.address ||
+        new solanaWeb3.PublicKey(e.data.slice(40,72)).toString() !== MINT) {
+      throw new Error('EscrowState pertence a outro acordo ou mint.');
+    }
+    const vault = new solanaWeb3.PublicKey(e.data.slice(72,104));
+    if (!vault.equals(deriveAta(escrow.pda, mint))) throw new Error('Vault do EscrowState não corresponde ao ATA esperado.');
+    show('vault', vault.toString());
+    const mintInfo = await connection.getAccountInfo(mint, 'confirmed');
+    if (!mintInfo || !mintInfo.owner.equals(TOKEN_PROGRAM)) throw new Error('Mint SPL de teste inválido.');
+    const supply = await connection.getTokenSupply(mint, 'confirmed');
+    if (supply.value.decimals !== 6) throw new Error('O token de teste não possui 6 decimais.');
+
+    const vaultInfo = await tokenAccount(connection, vault, escrow.address, MINT);
+    const vaultRaw = BigInt(vaultInfo.tokenAmount.amount);
+    show('vault-balance', vaultInfo.tokenAmount.uiAmountString + ' token de teste', vaultRaw === EXPECTED_VAULT_AMOUNT ? 'ok' : 'warn');
+    if (vaultRaw !== EXPECTED_VAULT_AMOUNT) throw new Error('O Vault não contém exatamente 1 token. Não continue.');
+
+    if (!solanaWeb3.PublicKey.isOnCurve(worker.toBytes())) throw new Error('Carteira do prestador inválida para ATA convencional.');
+    const workerAta = deriveAta(worker, mint);
+    show('worker-ata', workerAta.toString());
+    const receiver = await tokenAccount(connection, workerAta, WORKER, MINT);
+    beforeWorkerRaw = BigInt(receiver.tokenAmount.amount);
+    show('worker-balance', receiver.tokenAmount.uiAmountString + ' token de teste', 'ok');
+
+    const solBalance = await connection.getBalance(new solanaWeb3.PublicKey(CLIENT), 'confirmed');
+    if (solBalance < 10000) throw new Error('Cliente sem SOL Devnet suficiente para taxa da transação.');
+
+    ready = true;
+    releaseBtn.disabled = sending;
+    return {connection, programId, agreement, escrow, mint, vault, worker, workerAta};
+  }
+
+  async function inspectResult(connection, agreementPda, vault, workerAta) {
+    const a = await connection.getAccountInfo(agreementPda, 'confirmed');
+    if (!a || a.data.length < 130) throw new Error('Agreement não disponível após a transação.');
+    const agreementState = a.data[128];
+    show('agreement-status', STATUS_NAMES[agreementState] || 'Desconhecido (' + agreementState + ')', agreementState === 4 ? 'ok' : 'warn');
+    const v = await connection.getTokenAccountBalance(vault, 'confirmed');
+    const w = await connection.getTokenAccountBalance(workerAta, 'confirmed');
+    const vaultRaw = BigInt(v.value.amount);
+    const workerRaw = BigInt(w.value.amount);
+    show('vault-balance', v.value.uiAmountString + ' token de teste', vaultRaw === 0n ? 'ok' : 'warn');
+    show('worker-balance', w.value.uiAmountString + ' token de teste', workerRaw >= (beforeWorkerRaw || 0n) + EXPECTED_VAULT_AMOUNT ? 'ok' : 'warn');
+    return agreementState === 4 && vaultRaw === 0n && workerRaw >= (beforeWorkerRaw || 0n) + EXPECTED_VAULT_AMOUNT;
+  }
+
+  checkBtn.addEventListener('click', async () => {
+    if (sending || attemptedBroadcast) return;
+    checkBtn.disabled = true;
+    status('Conectando Phantom e verificando a blockchain...');
+    try {
+      await checkEverything(true);
+      status('✅ Tudo pronto!\n\nCliente correto. Agreement = Delivered. Vault = 1 token. ATA do prestador válida.\n\nSe você decidiu aprovar este teste, pode clicar em "Autorizar liberação de 1 token na Devnet".', 'success');
+    } catch (error) {
+      status('❌ ' + (error.message || String(error)), 'error');
+    } finally {
+      checkBtn.disabled = false;
+    }
+  });
+
+  releaseBtn.addEventListener('click', async () => {
+    if (!ready || sending || attemptedBroadcast) return;
+    sending = true;
+    releaseBtn.disabled = true;
+    checkBtn.disabled = true;
+    let context = null;
+    let broadcastStarted = false;
+    try {
+      context = await checkEverything(false); // Revalida imediatamente antes da transação.
+      if (walletAddress() !== CLIENT) throw new Error('A conta Phantom mudou antes da assinatura.');
+      const dataHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('global:release_payment'));
+      const data = new Uint8Array(dataHash).slice(0, 8); // Instrução Anchor sem argumentos.
+      const ix = new solanaWeb3.TransactionInstruction({
+        programId: context.programId,
+        keys: [
+          {pubkey: new solanaWeb3.PublicKey(CLIENT), isSigner: true, isWritable: true},
+          {pubkey: context.worker, isSigner: false, isWritable: false},
+          {pubkey: context.agreement.pda, isSigner: false, isWritable: true},
+          {pubkey: context.escrow.pda, isSigner: false, isWritable: false},
+          {pubkey: context.mint, isSigner: false, isWritable: false},
+          {pubkey: context.vault, isSigner: false, isWritable: true},
+          {pubkey: context.workerAta, isSigner: false, isWritable: true},
+          {pubkey: TOKEN_PROGRAM, isSigner: false, isWritable: false},
+          {pubkey: ATA_PROGRAM, isSigner: false, isWritable: false},
+          {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false}
+        ],
+        data
+      });
+      // Blockhash finalized para minimizar problemas com nós RPC da Devnet.
+      const latest = await context.connection.getLatestBlockhash('finalized');
+      const tx = new solanaWeb3.Transaction().add(ix);
+      tx.feePayer = new solanaWeb3.PublicKey(CLIENT);
+      tx.recentBlockhash = latest.blockhash;
+      status('A Phantom vai pedir sua assinatura.\n\nVocê está autorizando liberar 1 token de teste do cofre ao prestador.\nNenhum USDC ou SOL real será transferido.');
+      const signed = await provider.signTransaction(tx);
+      if (walletAddress() !== CLIENT) throw new Error('A conta da Phantom mudou durante a assinatura.');
+      const currentHeight = await context.connection.getBlockHeight('confirmed');
+      if (currentHeight > latest.lastValidBlockHeight) {
+        throw new Error('O blockhash expirou enquanto você assinava. Nenhuma transação foi enviada. Recarregue e verifique o estado antes de tentar novamente.');
+      }
+      // A partir daqui, jamais reenviar automaticamente se houver dúvida sobre o resultado.
+      attemptedBroadcast = true;
+      broadcastStarted = true;
+      status('Transação assinada. Enviando para a Solana Devnet...');
+      transactionSignature = await context.connection.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false, preflightCommitment: 'finalized', maxRetries: 3
+      });
+      status('Transação enviada!\n\nAguardando confirmação...\n' + transactionSignature);
+      const confirmation = await context.connection.confirmTransaction({
+        signature: transactionSignature,
+        blockhash: latest.blockhash,
+        lastValidBlockHeight: latest.lastValidBlockHeight
+      }, 'confirmed');
+      if (confirmation.value.err) throw new Error('Transação processada com erro: ' + JSON.stringify(confirmation.value.err));
+      const completed = await inspectResult(context.connection, context.agreement.pda, context.vault, context.workerAta);
+      if (!completed) throw new Error('A transação foi confirmada, mas a leitura do RPC ainda não validou Completed, Vault=0 e recebimento do prestador. Não repita. Confira o Explorer.');
+      status('✅ Pagamento liberado na Solana Devnet!\n\nAgreement: Completed\nVault: 0 token\nPrestador recebeu: +1 token de teste\n\nTransação: ' + transactionSignature, 'success');
+      appendExplorerLink(transactionSignature);
+    } catch (error) {
+      console.error('[ProofPay] releasePayment:', error);
+      if (broadcastStarted && context) {
+        try {
+          const completed = await inspectResult(context.connection, context.agreement.pda, context.vault, context.workerAta);
+          if (completed) {
+            status('✅ A blockchain confirma que o acordo está Completed, Vault=0 e o prestador recebeu o token.\n\n' + (transactionSignature ? 'Transação: ' + transactionSignature : 'Consulte o Agreement no Solana Explorer.'), 'success');
+            if (transactionSignature) appendExplorerLink(transactionSignature);
+            return;
+          }
+        } catch (inspectionError) {
+          console.warn('[ProofPay] Não foi possível confirmar o resultado após erro RPC:', inspectionError);
+        }
+      }
+      const caution = broadcastStarted
+        ? '\n\nNão envie de novo! Confira primeiro o Agreement e a transação no Solana Explorer.'
+        : '\n\nNenhuma transmissão foi iniciada por esta página. Confira o estado do acordo antes de tentar novamente.';
+      status('❌ ' + (error.message || String(error)) + (transactionSignature ? '\n\nTransação: ' + transactionSignature : '') + caution, 'error');
+      if (transactionSignature) appendExplorerLink(transactionSignature);
+    } finally {
+      sending = false;
+      releaseBtn.disabled = true;
+      checkBtn.disabled = attemptedBroadcast;
+    }
+  });
+})();
+</script>
+</body>
+</html>

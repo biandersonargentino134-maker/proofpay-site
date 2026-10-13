@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProofPay — Verificação do prestador (somente leitura)</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; padding:30px 16px; background:#0a0a0c; color:#f5f5f6; font:15px/1.55 Arial,Helvetica,sans-serif; }
+    main { max-width:760px; margin:0 auto; }
+    h1 { margin:0 0 5px; font-size:30px; }
+    h2 { margin:0 0 22px; font-size:16px; font-weight:normal; color:#babac4; }
+    .card { padding:22px; border:1px solid #35353c; border-radius:14px; background:#17171b; }
+    .row { padding:13px 0; border-bottom:1px solid #303036; }
+    .row:last-of-type { border-bottom:none; }
+    .label { display:block; color:#a8a8b2; font-size:12px; margin-bottom:5px; }
+    .value { overflow-wrap:anywhere; }
+    .mono { font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+    .ok { color:#73efa1; font-weight:bold; }
+    .warn { color:#ffd27a; font-weight:bold; }
+    .bad { color:#ffb1b1; font-weight:bold; }
+    button { display:block; width:100%; padding:14px; margin-top:18px; color:#101014; background:#fff; border:none; border-radius:9px; cursor:pointer; font-size:14px; font-weight:bold; }
+    button:disabled { opacity:.55; cursor:default; }
+    #status { white-space:pre-wrap; margin-top:18px; padding:15px; border:1px solid #414149; border-radius:10px; background:#101014; overflow-wrap:anywhere; }
+    #status.good { background:#11251b; color:#aff3c4; border-color:#377b51; }
+    #status.warning { background:#2b2519; color:#ffe0a0; border-color:#866c32; }
+    #status.error { background:#291a1c; color:#ffb3b3; border-color:#833a42; }
+    .note { font-size:12px; color:#aaaab2; line-height:1.65; margin:20px 0 0; }
+    a { color:#b5ccff; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ProofPay</h1>
+  <h2>Confirmar vínculo do prestador — teste na Devnet</h2>
+  <div class="card">
+    <div class="row"><span class="label">Objetivo</span><div class="value">Conferir, com a própria conta Google do prestador, se a carteira verificada no Supabase é a que está registrada para este novo teste.</div></div>
+    <div class="row"><span class="label">Acordo</span><div class="value">Teste ProofPay — Página de apresentação</div></div>
+    <div class="row"><span class="label">ID do acordo no Supabase</span><div class="value mono" id="agreement-id"></div></div>
+    <div class="row"><span class="label">Conta Google conectada</span><div class="value" id="user">Consultando…</div></div>
+    <div class="row"><span class="label">Acordo está atribuído a esta conta como prestador?</span><div class="value" id="provider">Aguardando…</div></div>
+    <div class="row"><span class="label">Situação do acordo</span><div class="value" id="agreement-status">Aguardando…</div></div>
+    <div class="row"><span class="label">Carteira esperada para o prestador</span><div class="value mono" id="expected-wallet"></div></div>
+    <div class="row"><span class="label">Carteira registrada no perfil do Supabase</span><div class="value mono" id="profile-wallet">Aguardando…</div></div>
+    <div class="row"><span class="label">Carteira verificada no Supabase?</span><div class="value" id="verified">Aguardando…</div></div>
+    <button type="button" id="check">Conferir novamente (somente leitura)</button>
+    <div id="status" role="status" aria-live="polite">Iniciando verificação…</div>
+    <p class="note">Esta é uma página técnica somente de leitura. Não conecta a Phantom, não solicita assinatura, não modifica o Supabase e não envia transações para a Solana. O acordo ainda não está registrado na blockchain. O token SPL de teste não é USDC real.</p>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="require-auth.js"></script>
+<script>
+(() => {
+  'use strict';
+  const AGREEMENT_ID='07068f9e-62c9-44d6-b8a8-7d40463d3951';
+  const EXPECTED_WORKER='HQGXhgY1Vm6nwgZsSHWBM73YJKo3etZpZzbU7hoiV82c';
+  const $=id=>document.getElementById(id);
+  $('agreement-id').textContent=AGREEMENT_ID;
+  $('expected-wallet').textContent=EXPECTED_WORKER;
+  const button=$('check');
+  const show=(id,value,cls='')=>{const node=$(id);node.textContent=value;node.className='value'+(cls?' '+cls:'')+(id==='profile-wallet'?' mono':'');};
+  const status=(value,cls='')=>{$('status').textContent=value;$('status').className=cls;};
+
+  async function verify(){
+    button.disabled=true;
+    status('Consultando o Supabase com a sua sessão…');
+    try{
+      if(!window.ppSupabase)throw new Error('Cliente Supabase não carregado.');
+      const sb=window.ppSupabase;
+      const {data:ud,error:ue}=await sb.auth.getUser();
+      if(ue||!ud?.user)throw new Error('Entre no ProofPay com o Google do prestador.');
+      const user=ud.user;
+      show('user',user.email||'Sessão autenticada');
+
+      const {data:a,error:ae}=await sb.from('agreements')
+        .select('id,title,status,amount_usdc,hirer_id,provider_id')
+        .eq('id',AGREEMENT_ID).single();
+      if(ae||!a)throw new Error('Não foi possível ler o acordo. Confira se entrou com a conta do prestador.');
+      if(a.provider_id!==user.id||a.hirer_id===user.id){
+        show('provider','NÃO — esta conta não é o prestador do acordo','bad');
+        throw new Error('A conta Google aberta não é a que aceitou este acordo. Pare e confira a conta.');
+      }
+      show('provider','SIM — a conta conectada é a do prestador','ok');
+      show('agreement-status',a.status,a.status==='awaiting_funding'?'ok':'warn');
+      if(a.status!=='awaiting_funding'||Number(a.amount_usdc)!==1){
+        throw new Error('O acordo mudou de estado ou de valor. Não continue sem verificar.');
+      }
+
+      const {data:profile,error:pe}=await sb.from('profiles')
+        .select('id,wallet_address,wallet_verified')
+        .eq('id',user.id).single();
+      if(pe||!profile)throw new Error('O Supabase não permitiu ler seu próprio perfil. Não podemos validar a carteira.');
+      show('profile-wallet',profile.wallet_address||'Nenhuma carteira registrada');
+      show('verified',profile.wallet_verified===true?'SIM':'NÃO',profile.wallet_verified===true?'ok':'bad');
+      if(profile.wallet_verified!==true)throw new Error('Esta carteira não está verificada no Supabase.');
+      if(profile.wallet_address!==EXPECTED_WORKER)throw new Error('A carteira verificada não coincide com HQGX...V82c. Não execute transações.');
+      status('✅ VERIFICAÇÃO CONCLUÍDA!\n\nO Google conectado pertence ao prestador que aceitou este acordo.\nA carteira HQGX...V82c está registrada e verificada no Supabase.\nO acordo continua aguardando financiamento.\n\nNenhuma transação foi enviada.','good');
+    }catch(e){console.error('[ProofPay] Conferência do prestador:',e);status('❌ '+(e.message||String(e)),'error');}
+    finally{button.disabled=false;}
+  }
+  button.addEventListener('click',verify);
+  verify();
+})();
+</script>
+</body>
+</html>

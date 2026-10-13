@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ProofPay — Teste Solana</title>
+
+  <style>
+    body {
+      background: #0a0a0c;
+      color: white;
+      font-family: Arial, sans-serif;
+      padding: 40px 20px;
+    }
+
+    main {
+      max-width: 650px;
+      margin: auto;
+    }
+
+    .card {
+      background: #17171b;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 25px;
+    }
+
+    #status {
+      font-weight: bold;
+      color: #fbbf24;
+    }
+
+    .online {
+      color: #4ade80 !important;
+    }
+
+    .error {
+      color: #f87171 !important;
+    }
+
+    code {
+      overflow-wrap: anywhere;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>ProofPay</h1>
+    <h2>Teste de conexão Solana</h2>
+
+    <div class="card">
+      <p>Rede: <strong>Devnet</strong></p>
+
+      <p>
+        Programa:
+        <code id="programa">Carregando...</code>
+      </p>
+
+      <p>
+        Status:
+        <span id="status">Verificando...</span>
+      </p>
+
+      <p id="mensagem">
+        Consultando a blockchain...
+      </p>
+    </div>
+  </main>
+
+  <script src="solana-config.js"></script>
+  <script src="solana-readonly.js"></script>
+
+  <script>
+    async function testarSolana() {
+      const statusEl =
+        document.getElementById("status");
+
+      const mensagemEl =
+        document.getElementById("mensagem");
+
+      const programaEl =
+        document.getElementById("programa");
+
+      try {
+        programaEl.textContent =
+          window.ppSolanaConfig.programId;
+
+        const resultado =
+          await window.ppSolanaReadonly.getProgramStatus();
+
+        if (resultado.exists && resultado.executable) {
+          statusEl.textContent = "ONLINE";
+          statusEl.className = "online";
+
+          mensagemEl.textContent =
+            "Programa ProofPay encontrado e executável na Solana Devnet!";
+        } else {
+          statusEl.textContent = "NÃO ENCONTRADO";
+          statusEl.className = "error";
+
+          mensagemEl.textContent =
+            "O programa não foi encontrado ou não está executável.";
+        }
+
+      } catch (erro) {
+        statusEl.textContent = "ERRO";
+        statusEl.className = "error";
+
+        mensagemEl.textContent =
+          "Erro de conexão: " + erro.message;
+
+        console.error(erro);
+      }
+    }
+
+    testarSolana();
+  </script>
+
+</body>
+</html>
